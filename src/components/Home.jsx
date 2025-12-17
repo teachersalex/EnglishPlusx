@@ -90,51 +90,30 @@ function Home() {
       <Header />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {user ? (
-          <>
-            <UserStats user={userData} continueEpisode={continueEpisode} />
-            <SeriesRow title="Starter — Pré-A1" series={seriesByLevel.starter} onSeriesClick={handleSeriesClick} />
-            <SeriesRow title="Nível A1 — Iniciante" series={seriesByLevel.a1} onSeriesClick={handleSeriesClick} />
-            <SeriesRow title="Nível A2 — Básico" series={seriesByLevel.a2} onSeriesClick={handleSeriesClick} />
-          </>
-        ) : (
-          <>
-            {/* Hero para não logados */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center mb-8"
+{user && <UserStats user={userData} continueEpisode={continueEpisode} />}
+        
+        {!user && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-3xl font-bold text-[#1A1A1A] mb-4">
+              Aprenda inglês com histórias imersivas
+            </h1>
+            <p className="text-[#6B7280] mb-6">Faça login para acompanhar seu progresso</p>
+            <button
+              onClick={() => document.querySelector('[data-login]')?.click()}
+              className="bg-[#E50914] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#B20710] transition-colors"
             >
-              <h1 className="text-3xl font-bold text-[#1A1A1A] mb-6">
-                Aprenda inglês com histórias imersivas
-              </h1>
-              <button
-                onClick={() => document.querySelector('[data-login]')?.click()}
-                className="bg-[#E50914] text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-[#B20710] transition-colors"
-              >
-                Começar grátis
-              </button>
-            </motion.div>
-
-            {/* Série em destaque */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              onClick={() => handleSeriesClick(1)}
-              className="cursor-pointer"
-            >
-              <img
-                src="/images/midnight-key-cover.png"
-                alt="The Midnight Key"
-                className="w-full max-w-2xl mx-auto rounded-2xl shadow-2xl"
-              />
-              <p className="text-center mt-4 text-[#1A1A1A] font-bold text-xl">
-                The Midnight Key <span className="text-[#6B7280] font-normal">• A1</span>
-              </p>
-            </motion.div>
-          </>
+              Começar grátis
+            </button>
+          </motion.div>
         )}
+
+        <SeriesRow title="Starter — Pré-A1" series={seriesByLevel.starter} onSeriesClick={handleSeriesClick} />
+        <SeriesRow title="Nível A1 — Iniciante" series={seriesByLevel.a1} onSeriesClick={handleSeriesClick} />
+        <SeriesRow title="Nível A2 — Básico" series={seriesByLevel.a2} onSeriesClick={handleSeriesClick} />
       </main>
     </div>
   )

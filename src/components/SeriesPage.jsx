@@ -67,7 +67,9 @@ function SeriesPage() {
                   <p className="text-[#6B7280] text-sm">{ep.duration}</p>
                 </div>
               </div>
-              <span className="text-[#E50914] text-2xl">▶</span>
+              <svg className="w-6 h-6 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M8 5v14l11-7z" />
+</svg>
             </motion.div>
           ))}
         </div>

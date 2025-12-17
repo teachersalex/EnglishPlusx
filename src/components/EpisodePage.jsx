@@ -223,7 +223,19 @@ function EpisodePage() {
   const episode = series?.episodes.find(ep => ep.id === parseInt(episodeId))
   const totalQuestions = episode?.questions.length || 0
 
-  // Carrega progresso ao abrir
+  // RESETA TUDO quando muda de episódio, ANTES de carregar progresso
+  useEffect(() => {
+    setCurrentQuestionIndex(0)
+    setSelectedAnswer(null)
+    setScore(0)
+    setShowMiniModal(false)
+    setShowFinalModal(false)
+    setAudioTime(0)
+    setLoadingProgress(true)
+    setLastAnswerCorrect(false)
+  }, [id, episodeId])
+
+  // Carrega progresso DEPOIS de resetar
   useEffect(() => {
     async function loadProgress() {
       if (!user || !episode) {
@@ -233,24 +245,21 @@ function EpisodePage() {
       
       const progress = await getProgress(id, episodeId)
       
+      // Só carrega se NÃO estiver completo
       if (progress && !progress.completed) {
         setCurrentQuestionIndex(progress.currentQuestion || 0)
         setScore(progress.score || 0)
         setAudioTime(progress.audioTime || 0)
       }
+      // Se completo, mantém os valores zerados do reset
       
       setLoadingProgress(false)
     }
     
-    loadProgress()
-  }, [user, id, episodeId])
-
-  // Reseta estados quando muda de episódio
-  useEffect(() => {
-    setSelectedAnswer(null)
-    setShowMiniModal(false)
-    setShowFinalModal(false)
-  }, [episodeId])
+    // Pequeno delay pra garantir que o reset rodou
+    const timer = setTimeout(loadProgress, 50)
+    return () => clearTimeout(timer)
+  }, [user, id, episodeId, episode])
 
   if (!series || !episode) {
     return (
@@ -260,7 +269,7 @@ function EpisodePage() {
     )
   }
 
-if (loadingProgress) {
+  if (loadingProgress) {
     return (
       <div className="min-h-screen bg-[#F0F0F0] flex items-center justify-center">
         <p className="text-[#6B7280]">Carregando...</p>
@@ -293,7 +302,6 @@ if (loadingProgress) {
   }
 
   const currentQuestion = episode.questions[currentQuestionIndex]
-
   const isLastQuestion = currentQuestionIndex === totalQuestions - 1
 
   // Salva tempo do áudio
@@ -324,7 +332,6 @@ if (loadingProgress) {
       setScore(newScore)
       if (user) {
         updateUserXP(10)
-        // Salva progresso ao acertar
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: currentQuestionIndex,
@@ -345,7 +352,6 @@ if (loadingProgress) {
     setShowMiniModal(false)
     
     if (isLastQuestion) {
-      // Marca como completo
       if (user) {
         saveProgress(id, episodeId, {
           audioTime,
@@ -364,7 +370,6 @@ if (loadingProgress) {
       setCurrentQuestionIndex(nextIndex)
       setSelectedAnswer(null)
       
-      // Salva progresso ao avançar
       if (user) {
         saveProgress(id, episodeId, {
           audioTime,
@@ -425,8 +430,9 @@ if (loadingProgress) {
       <Header showBack backTo={`/series/${id}`} />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* Player de áudio */}
+        {/* Player de áudio - KEY força remontagem */}
         <motion.div
+          key={`${id}-${episodeId}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
@@ -456,7 +462,7 @@ if (loadingProgress) {
 
         {/* Quiz */}
         <motion.div
-          key={currentQuestionIndex}
+          key={`quiz-${currentQuestionIndex}`}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="bg-white rounded-2xl p-6 shadow-lg"

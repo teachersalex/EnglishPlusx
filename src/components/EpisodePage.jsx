@@ -155,7 +155,16 @@ function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUp
           onClick={togglePlay}
           className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white text-2xl hover:bg-[#B20710] transition-colors shadow-lg"
         >
-          {isPlaying ? '⏸' : '▶'}
+          {isPlaying ? (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
+  </svg>
+) : (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+)}
         </motion.button>
 
         {/* Avançar 5s */}

@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MiniModal from './modals/MiniModal'
 import FinalModal from './modals/FinalModal'
 import Header from './Header'
+import LoginModal from './LoginModal'
 
 
 function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate }) {
@@ -250,7 +251,7 @@ function EpisodePage() {
     )
   }
 
-  if (loadingProgress) {
+if (loadingProgress) {
     return (
       <div className="min-h-screen bg-[#F0F0F0] flex items-center justify-center">
         <p className="text-[#6B7280]">Carregando...</p>
@@ -258,7 +259,32 @@ function EpisodePage() {
     )
   }
 
+  // Bloqueio para não logados
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#F0F0F0]">
+        <Header showBack backTo={`/series/${id}`} />
+        <main className="max-w-md mx-auto px-4 py-16 text-center">
+          <img 
+            src={series.coverImage} 
+            alt={series.title}
+            className="w-32 h-32 object-cover rounded-xl mx-auto mb-6"
+          />
+          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">{episode.title}</h1>
+          <p className="text-[#6B7280] mb-6">Faça login para ouvir este episódio</p>
+          <button
+            onClick={() => document.querySelector('[data-login]')?.click()}
+            className="bg-[#E50914] text-white px-8 py-4 rounded-xl font-bold hover:bg-[#B20710] transition-colors"
+          >
+            Entrar para continuar
+          </button>
+        </main>
+      </div>
+    )
+  }
+
   const currentQuestion = episode.questions[currentQuestionIndex]
+
   const isLastQuestion = currentQuestionIndex === totalQuestions - 1
 
   // Salva tempo do áudio

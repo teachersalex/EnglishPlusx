@@ -10,7 +10,7 @@ export const seriesStarter = {
       {
         id: 1,
         title: "Morning Coffee",
-        duration: "45 sec",
+        duration: "19 sec",
         audioUrl: "/audio/starter_e1.mp3",
         text: `I wake up.
 It is 7 o'clock.
@@ -45,7 +45,7 @@ Now, I am ready.`,
       {
         id: 2,
         title: "The Bus",
-        duration: "45 sec",
+        duration: "18 sec",
         audioUrl: "/audio/starter_e2.mp3",
         text: `I open the door.
 The sun is shining.
@@ -80,7 +80,7 @@ Many people are in the street.`,
       {
         id: 3,
         title: "The New Job",
-        duration: "45 sec",
+        duration: "18 sec",
         audioUrl: "/audio/starter_e3.mp3",
         text: `The bus stops.
 I see the building.
@@ -126,7 +126,7 @@ I am happy now.`,
       {
         id: 1,
         title: "The Delivery",
-        duration: "45 sec",
+        duration: "22 sec",
         audioUrl: "/audio/mystery_e1.mp3",
         text: `The doorbell rings.
 Ding-dong.
@@ -162,7 +162,7 @@ Who sent this?`,
       {
         id: 2,
         title: "What is inside?",
-        duration: "45 sec",
+        duration: "26 sec",
         audioUrl: "/audio/mystery_e2.mp3",
         text: `I put the box on the table.
 There is no name on it.
@@ -198,7 +198,7 @@ I am curious.`,
       {
         id: 3,
         title: "The Surprise",
-        duration: "45 sec",
+        duration: "28 sec",
         audioUrl: "/audio/mystery_e3.mp3",
         text: `I open the box.
 I see blue paper.

@@ -10,7 +10,7 @@ export const seriesA1 = {
       {
         id: 1,
         title: "The Visitor",
-        duration: "3 min",
+        duration: "48 sec",
         audioUrl: "/audio/mkey_e1.mp3",
         text: `It is night. It is raining.
 A man enters the hotel.
@@ -52,7 +52,7 @@ The man goes to the elevator.`,
       {
         id: 2,
         title: "The Room",
-        duration: "3 min",
+        duration: "43 sec",
         audioUrl: "/audio/mkey_e2.mp3",
         text: `Sarah looks at the computer.
 The man is not in the system.
@@ -93,7 +93,7 @@ It is a photo of Sarah.`,
       {
         id: 3,
         title: "The Secret",
-        duration: "3 min",
+        duration: "40 sec",
         audioUrl: "/audio/mkey_e3.mp3",
         text: `The man comes back.
 He enters through the window.
@@ -144,7 +144,7 @@ Sarah is alone.`,
       {
         id: 1,
         title: "The Mistake",
-        duration: "1 min",
+        duration: "33 sec",
         audioUrl: "/audio/phone_e1.mp3",
         text: `I am at a coffee shop.
 I am in a hurry.
@@ -181,7 +181,7 @@ Oh no. This is not my phone!`,
       {
         id: 2,
         title: "The Call",
-        duration: "1 min",
+        duration: "31 sec",
         audioUrl: "/audio/phone_e2.mp3",
         text: `The phone rings.
 I look at the screen.
@@ -218,7 +218,7 @@ We make a plan to meet.`,
       {
         id: 3,
         title: "The Meeting",
-        duration: "1 min",
+        duration: "29 sec",
         audioUrl: "/audio/phone_e3.mp3",
         text: `I wait at the park.
 A man walks towards me.

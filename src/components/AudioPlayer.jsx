@@ -209,8 +209,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [showDictation, setShowDictation] = useState(false)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
-  const [showTranscript, setShowTranscript] = useState(false)
-
+  
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
 
   useEffect(() => {
@@ -242,7 +241,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       audio.removeEventListener('timeupdate', updateTime)
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [onTimeUpdate]) // Adicionado onTimeUpdate nas dependências
+  }, [onTimeUpdate])
 
   // Auto-save periódico
   useEffect(() => {
@@ -370,25 +369,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       {/* UX */}
       {transcript && (
         <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
-           <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              const newState = !showTranscript
-              setShowTranscript(newState)
-              if (newState) setShowDictation(false)
-            }}
-            className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            {showTranscript ? 'Esconder Transcrição' : 'Ver Transcrição'}
-          </motion.button>
-
-          {showTranscript && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/10 rounded-xl p-4 max-h-60 overflow-y-auto">
-              <p className="text-white/90 text-sm leading-relaxed whitespace-pre-line">{transcript}</p>
-            </motion.div>
-          )}
-
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => { 
@@ -396,7 +376,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
               setShowDictation(newState)
               if (newState) {
                 setFeedback(null)
-                setShowTranscript(false)
               }
             }}
             className="w-full py-3 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20"

@@ -241,7 +241,7 @@ It is a perfect gift.`,
     level: "Starter",
     genre: "Romance / Drama",
     description: "Anna está sozinha. Ela olha para uma foto antiga. Onde está John?",
-    image: "💔", // Prompt abaixo
+    coverImage: "/images/photography-cover.png",
     episodes: [
       {
         id: 1,

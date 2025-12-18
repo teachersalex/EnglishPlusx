@@ -1,35 +1,68 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
-// Função para normalizar texto (remove pontuação, lowercase)
+// Mapa de números por extenso
+const numberWords = {
+  '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
+  '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
+  '10': 'ten', '11': 'eleven', '12': 'twelve'
+}
+
+// Normaliza uma palavra (lowercase, sem pontuação, converte números)
+function normalizeWord(word) {
+  let normalized = word.toLowerCase().replace(/[.,!?;:'"()\-`]/g, '').trim()
+  // Converte número para extenso se existir
+  if (numberWords[normalized]) {
+    normalized = numberWords[normalized]
+  }
+  return normalized
+}
+
+// Função para normalizar texto completo
 function normalizeText(text) {
   return text
     .toLowerCase()
-    .replace(/[.,!?;:'"()\-\n]/g, ' ')
+    .replace(/[.,!?;:'"()\-`\n]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-// Compara duas listas de palavras
+// Compara textos de forma mais tolerante
 function compareWords(original, attempt) {
-  const originalWords = normalizeText(original).split(' ')
-  const attemptWords = normalizeText(attempt).split(' ')
+  const originalWords = normalizeText(original).split(' ').map(normalizeWord).filter(w => w)
+  const attemptWords = normalizeText(attempt).split(' ').map(normalizeWord).filter(w => w)
   
   const results = []
-  const maxLen = Math.max(originalWords.length, attemptWords.length)
+  const usedOriginalIndices = new Set()
   
-  for (let i = 0; i < maxLen; i++) {
-    const origWord = originalWords[i] || ''
-    const attWord = attemptWords[i] || ''
+  // Para cada palavra do aluno, procura correspondência no original
+  for (const attWord of attemptWords) {
+    let found = false
     
-    if (origWord === attWord) {
-      results.push({ word: attWord, correct: true, expected: origWord })
-    } else {
-      results.push({ word: attWord || '___', correct: false, expected: origWord })
+    // Procura a palavra no original (que ainda não foi usada)
+    for (let i = 0; i < originalWords.length; i++) {
+      if (!usedOriginalIndices.has(i) && originalWords[i] === attWord) {
+        usedOriginalIndices.add(i)
+        results.push({ word: attWord, correct: true, expected: attWord })
+        found = true
+        break
+      }
+    }
+    
+    if (!found) {
+      // Palavra não encontrada - marca como erro
+      results.push({ word: attWord, correct: false, expected: '' })
     }
   }
   
-  return results
+  // Adiciona palavras que o aluno esqueceu
+  for (let i = 0; i < originalWords.length; i++) {
+    if (!usedOriginalIndices.has(i)) {
+      results.push({ word: '___', correct: false, expected: originalWords[i] })
+    }
+  }
+  
+  return { results, totalOriginal: originalWords.length, correctCount: usedOriginalIndices.size }
 }
 
 export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript }) {
@@ -135,8 +168,8 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   // Verifica o ditado
   const handleCheck = () => {
     if (!userText.trim() || !transcript) return
-    const results = compareWords(transcript, userText)
-    setComparison(results)
+    const result = compareWords(transcript, userText)
+    setComparison(result)
   }
 
   // Limpa o ditado
@@ -147,9 +180,9 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
   const progress = duration ? (currentTime / duration) * 100 : 0
   
-  // Calcula score
+  // Calcula score baseado no total de palavras originais
   const score = comparison 
-    ? Math.round((comparison.filter(r => r.correct).length / comparison.length) * 100)
+    ? Math.round((comparison.correctCount / comparison.totalOriginal) * 100)
     : null
 
   return (
@@ -353,9 +386,9 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
                   {/* Palavras coloridas */}
                   <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-white/50 text-xs mb-2">Seu texto corrigido:</p>
+                    <p className="text-white/50 text-xs mb-2">Resultado:</p>
                     <div className="flex flex-wrap gap-1">
-                      {comparison.map((result, idx) => (
+                      {comparison.results.map((result, idx) => (
                         <span
                           key={idx}
                           className={`px-1 py-0.5 rounded text-sm ${
@@ -363,17 +396,23 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                               ? 'bg-[#22C55E]/20 text-[#22C55E]' 
                               : 'bg-[#EF4444]/20 text-[#EF4444]'
                           }`}
-                          title={!result.correct ? `Esperado: ${result.expected}` : ''}
                         >
-                          {result.word}
-                          {!result.correct && result.expected && (
-                            <span className="text-white/50 text-xs ml-1">
-                              ({result.expected})
-                            </span>
+                          {result.correct ? result.word : (
+                            <>
+                              {result.word !== '___' && <s>{result.word}</s>}
+                              {result.expected && (
+                                <span className="text-white/70 ml-1">
+                                  {result.expected}
+                                </span>
+                              )}
+                            </>
                           )}
                         </span>
                       ))}
                     </div>
+                    <p className="text-white/50 text-xs mt-3">
+                      {comparison.correctCount} de {comparison.totalOriginal} palavras corretas
+                    </p>
                   </div>
                 </motion.div>
               )}

@@ -9,17 +9,15 @@ const numberWords = {
   '10': 'ten', '11': 'eleven', '12': 'twelve'
 }
 
-// Normaliza preservando apóstrofos no meio (don't, o'clock)
 function normalizeWord(word) {
   if (!word) return ''
   let clean = word.toLowerCase()
-  // Remove pontuação apenas do início e fim
   clean = clean.replace(/^[.,!?;:"()\-]+|[.,!?;:"()\-]+$/g, '')
   if (numberWords[clean]) clean = numberWords[clean]
   return clean
 }
 
-// Algoritmo de Alinhamento com Lookahead
+// Algoritmo Sherlock (Mantido igual, pois a lógica é boa)
 function calculateDiff(originalText, userText) {
   const originalTokens = originalText.split(/\s+/).filter(w => w)
   const userTokens = userText.split(/\s+/).filter(w => w)
@@ -36,7 +34,6 @@ function calculateDiff(originalText, userText) {
     const origNorm = normalizeWord(origWordRaw)
     const userNorm = normalizeWord(userWordRaw)
 
-    // Acabou um dos lados
     if (!origWordRaw && userWordRaw) {
       diffResult.push({ type: 'extra', word: userWordRaw })
       uIndex++
@@ -48,7 +45,6 @@ function calculateDiff(originalText, userText) {
       continue
     }
 
-    // Match perfeito
     if (origNorm === userNorm) {
       diffResult.push({ type: 'correct', word: origWordRaw })
       correctCount++
@@ -57,10 +53,9 @@ function calculateDiff(originalText, userText) {
       continue
     }
 
-    // Lookahead: procura sincronização
     let foundMatch = false
     
-    // Hipótese A: Aluno inseriu palavras extras
+    // Hipótese A: Extra
     for (let offset = 1; offset <= 3; offset++) {
       if (uIndex + offset < userTokens.length) {
         if (origNorm === normalizeWord(userTokens[uIndex + offset])) {
@@ -75,7 +70,7 @@ function calculateDiff(originalText, userText) {
     }
     if (foundMatch) continue
 
-    // Hipótese B: Aluno pulou palavras
+    // Hipótese B: Missing
     for (let offset = 1; offset <= 3; offset++) {
       if (oIndex + offset < originalTokens.length) {
         if (userNorm === normalizeWord(originalTokens[oIndex + offset])) {
@@ -90,7 +85,7 @@ function calculateDiff(originalText, userText) {
     }
     if (foundMatch) continue
 
-    // Hipótese C: Substituição/erro
+    // Hipótese C: Wrong
     diffResult.push({ type: 'wrong', word: userWordRaw, expected: origWordRaw })
     oIndex++
     uIndex++
@@ -107,14 +102,13 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [duration, setDuration] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   
-  // Estados do ditado
   const [showDictation, setShowDictation] = useState(false)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
 
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
 
-  // --- EFEITOS DE ÁUDIO ---
+  // --- EFEITOS DE ÁUDIO (Mantidos) ---
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -200,7 +194,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const progress = duration ? (currentTime / duration) * 100 : 0
 
   return (
-    <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl">
+    <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Capa */}
@@ -301,7 +295,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
               setShowDictation(!showDictation)
               if (!showDictation) setFeedback(null)
             }}
-            className="w-full py-3 bg-[#F59E0B]/20 hover:bg-[#F59E0B]/30 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -316,10 +310,10 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-3 bg-white/10 rounded-xl p-4 overflow-hidden"
+                className="mt-3 bg-white/5 rounded-xl overflow-hidden border border-white/5"
               >
                 {!feedback ? (
-                  <>
+                  <div className="p-4">
                     <p className="text-white/70 text-sm mb-3">
                       Ouça o áudio e escreva o que entender:
                     </p>
@@ -328,7 +322,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                       value={userText}
                       onChange={(e) => setUserText(e.target.value)}
                       placeholder="Digite aqui o que você ouviu..."
-                      className="w-full h-32 p-3 rounded-lg bg-white/10 text-white placeholder-white/40 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#F59E0B]"
+                      className="w-full h-32 p-3 rounded-lg bg-black/30 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#F59E0B] border border-white/10"
                     />
                     
                     <div className="flex gap-2 mt-3">
@@ -336,75 +330,88 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                         whileTap={{ scale: 0.95 }}
                         onClick={handleCheck}
                         disabled={!userText.trim()}
-                        className="flex-1 py-2 bg-[#22C55E] hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
+                        className="flex-1 py-3 bg-green-700 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-bold transition-colors shadow-lg"
                       >
-                        Verificar
+                        Verificar Resposta
                       </motion.button>
                       <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={handleReset}
-                        className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
+                        className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
                       >
                         Limpar
                       </motion.button>
                     </div>
-                  </>
+                  </div>
                 ) : (
-                  /* Feedback Visual */
-                  <div>
-                    {/* Score */}
-                    <div className={`text-center p-3 rounded-lg mb-4 ${
-                      feedback.score >= 80 ? 'bg-[#22C55E]/20 text-[#22C55E]' :
-                      feedback.score >= 50 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' :
-                      'bg-[#EF4444]/20 text-[#EF4444]'
-                    }`}>
-                      <span className="text-3xl font-bold">{feedback.score}%</span>
-                      <p className="text-sm">
-                        {feedback.correctCount} de {feedback.total} palavras
-                      </p>
+                  /* Feedback Visual Otimizado */
+                  <div className="p-4">
+                    {/* Score Header */}
+                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
+                      <div>
+                        <span className="text-white/50 text-xs uppercase tracking-wider">Pontuação</span>
+                        <div className={`text-2xl font-bold ${
+                          feedback.score >= 80 ? 'text-green-400' :
+                          feedback.score >= 50 ? 'text-yellow-400' :
+                          'text-red-400'
+                        }`}>
+                          {feedback.score}%
+                        </div>
+                      </div>
+                      <div className="text-right">
+                         <span className="text-white/50 text-xs uppercase tracking-wider">Palavras</span>
+                         <div className="text-white text-sm">
+                           {feedback.correctCount} / {feedback.total}
+                         </div>
+                      </div>
                     </div>
 
-                    {/* Palavras coloridas */}
-                    <div className="bg-white/5 rounded-lg p-4 leading-loose">
+                    {/* Texto com Feedback */}
+                    {/* Aqui está o segredo do overflow: flex-wrap e break-words */}
+                    <div className="bg-black/30 rounded-lg p-4 leading-loose flex flex-wrap gap-1.5 break-words font-light text-base">
                       {feedback.diffResult.map((item, idx) => {
+                        // Correto: Branco (neutro)
                         if (item.type === 'correct') {
-                          return <span key={idx} className="text-[#22C55E] mr-1">{item.word}</span>
+                          return <span key={idx} className="text-white/90">{item.word}</span>
                         }
+                        // Faltou: Amarelo sublinhado
                         if (item.type === 'missing') {
                           return (
-                            <span key={idx} className="text-[#EF4444]/50 mr-1 italic">
-                              [{item.word}]
-                            </span>
-                          )
-                        }
-                        if (item.type === 'extra') {
-                          return (
-                            <span key={idx} className="text-[#EF4444] line-through mr-1 opacity-60">
+                            <span key={idx} className="text-yellow-500/80 border-b border-yellow-500/50 border-dashed" title="Palavra faltando">
                               {item.word}
                             </span>
                           )
                         }
-                        // wrong
+                        // Extra: Vermelho riscado
+                        if (item.type === 'extra') {
+                          return (
+                            <span key={idx} className="text-red-500/60 line-through text-sm">
+                              {item.word}
+                            </span>
+                          )
+                        }
+                        // Errado: Vermelho riscado + Correção verde
                         return (
-                          <span key={idx} className="mr-1">
-                            <span className="text-[#EF4444] line-through">{item.word}</span>
-                            <span className="text-[#22C55E] ml-1">{item.expected}</span>
+                          <span key={idx} className="inline-flex flex-wrap items-baseline gap-1">
+                            <span className="text-red-500/60 line-through text-sm decoration-1">{item.word}</span>
+                            <span className="text-green-400 font-medium">{item.expected}</span>
                           </span>
                         )
                       })}
                     </div>
 
-                    {/* Legenda */}
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/50">
-                      <span><span className="text-[#22C55E]">●</span> Correto</span>
-                      <span><span className="text-[#EF4444]">●</span> Erro</span>
-                      <span><span className="italic">[palavra]</span> Faltou</span>
+                    {/* Legenda Prática */}
+                    <div className="mt-4 flex flex-wrap gap-4 text-xs text-white/40 justify-center border-t border-white/5 pt-3">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/90"></span> Correto</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500/60"></span> Erro</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400"></span> Correção</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500/80"></span> Faltou</span>
                     </div>
 
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={handleReset}
-                      className="w-full mt-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
+                      className="w-full mt-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors"
                     >
                       Tentar Novamente
                     </motion.button>

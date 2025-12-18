@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- FERRAMENTAS DO SHERLOCK 🕵️‍♂️ ---
+// --- LÓGICA DE CORREÇÃO (MANTIDA) ---
 
 const numberWords = {
   '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
@@ -9,39 +9,29 @@ const numberWords = {
   '10': 'ten', '11': 'eleven', '12': 'twelve'
 }
 
-// Normaliza mantendo a integridade da palavra
 function normalizeWord(word) {
   if (!word) return ''
-  // 1. Lowercase
   let clean = word.toLowerCase()
-  // 2. Remove pontuação APENAS do início e fim (preserva ' no meio, ex: don't, o'clock)
   clean = clean.replace(/^[.,!?;:"()\-]+|[.,!?;:"()\-]+$/g, '')
-  // 3. Converte números
   if (numberWords[clean]) clean = numberWords[clean]
-  
   return clean
 }
 
-// O Cérebro da Correção: Algoritmo de Alinhamento com "Lookahead"
 function calculateDiff(originalText, userText) {
-  // Quebra por quebras de linha primeiro para preservar estrutura visual
-  // Mas para comparar a lógica, vamos usar arrays planos de palavras
   const originalTokens = originalText.split(/\s+/).filter(w => w)
   const userTokens = userText.split(/\s+/).filter(w => w)
 
   const diffResult = []
-  let uIndex = 0 // Ponteiro do usuario
-  let oIndex = 0 // Ponteiro do original
+  let uIndex = 0
+  let oIndex = 0
   let correctCount = 0
 
   while (oIndex < originalTokens.length || uIndex < userTokens.length) {
     const origWordRaw = originalTokens[oIndex]
     const userWordRaw = userTokens[uIndex]
-    
     const origNorm = normalizeWord(origWordRaw)
     const userNorm = normalizeWord(userWordRaw)
 
-    // 1. Acabou um dos lados
     if (!origWordRaw && userWordRaw) {
       diffResult.push({ type: 'extra', word: userWordRaw })
       uIndex++
@@ -53,7 +43,6 @@ function calculateDiff(originalText, userText) {
       continue
     }
 
-    // 2. Match Perfeito
     if (origNorm === userNorm) {
       diffResult.push({ type: 'correct', word: origWordRaw })
       correctCount++
@@ -62,10 +51,9 @@ function calculateDiff(originalText, userText) {
       continue
     }
 
-    // 3. Não bateu. Vamos investigar (Lookahead)
     let foundMatch = false
     
-    // Hipótese A: O aluno inseriu uma palavra extra
+    // Hipótese A: Palavra extra
     for (let offset = 1; offset <= 3; offset++) {
       if (uIndex + offset < userTokens.length) {
         if (origNorm === normalizeWord(userTokens[uIndex + offset])) {
@@ -78,10 +66,9 @@ function calculateDiff(originalText, userText) {
         }
       }
     }
-
     if (foundMatch) continue 
 
-    // Hipótese B: O aluno esqueceu palavras
+    // Hipótese B: Palavra faltando
     for (let offset = 1; offset <= 3; offset++) {
       if (oIndex + offset < originalTokens.length) {
         if (userNorm === normalizeWord(originalTokens[oIndex + offset])) {
@@ -94,19 +81,19 @@ function calculateDiff(originalText, userText) {
         }
       }
     }
-
     if (foundMatch) continue
 
-    // Hipótese C: Erro de substituição
+    // Hipótese C: Erro
     diffResult.push({ type: 'wrong', word: userWordRaw, expected: origWordRaw })
     oIndex++
     uIndex++
   }
 
   const score = Math.round((correctCount / originalTokens.length) * 100)
-  
   return { diffResult, score }
 }
+
+// --- COMPONENTE ---
 
 export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript }) {
   const audioRef = useRef(null)
@@ -115,14 +102,12 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [duration, setDuration] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   
-  // Estados UI (Sem showTranscript!)
   const [showDictation, setShowDictation] = useState(false)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
 
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
 
-  // --- EFEITOS DE AUDIO ---
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -193,8 +178,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     audioRef.current.currentTime = percent * duration
   }
 
-  // --- LÓGICA DO DITADO ---
-
   const handleCheck = () => {
     if (!userText.trim() || !transcript) return
     const result = calculateDiff(transcript, userText)
@@ -213,78 +196,77 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Capa */}
-      <div className="mb-6 relative group">
+      <div className="mb-6 text-center">
         <img 
           src={coverImage} 
           alt={episodeTitle}
-          className="w-full h-48 object-cover rounded-xl shadow-lg"
+          className="w-48 h-48 object-cover rounded-xl shadow-lg mx-auto"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent rounded-xl flex items-end justify-center pb-4">
-            <p className="text-white font-bold text-lg">{episodeTitle}</p>
-        </div>
+        <p className="text-white font-bold text-lg mt-4">{episodeTitle}</p>
       </div>
 
       {/* Barra de progresso */}
       <div className="mb-6">
         <div 
-          className="h-2 bg-white/20 rounded-full cursor-pointer overflow-hidden"
+          className="h-1.5 bg-white/10 rounded-full cursor-pointer overflow-hidden hover:h-2 transition-all"
           onClick={handleProgressClick}
         >
           <motion.div 
-            className="h-2 bg-[#E50914] rounded-full"
+            className="h-full bg-[#E50914] rounded-full"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="flex justify-between mt-2 text-white/50 text-xs font-mono">
+        <div className="flex justify-between mt-2 text-white/40 text-xs font-mono">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
       </div>
 
-      {/* Controles */}
-      <div className="flex items-center justify-center gap-6 mb-6">
+      {/* Controles Principais */}
+      <div className="flex items-center justify-center gap-6 mb-8">
+        {/* Botão Voltar 5s (Com Texto) */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => skip(-5)}
-          className="text-white/70 hover:text-white transition-colors"
+          className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 transition-all text-xs font-bold"
         >
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
-          </svg>
+          -5s
         </motion.button>
 
+        {/* Play/Pause */}
         <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={togglePlay}
-          className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg shadow-red-900/40"
+          className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg shadow-red-900/20"
         >
           {isPlaying ? (
-            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
           ) : (
-            <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           )}
         </motion.button>
 
+        {/* Botão Avançar 5s (Com Texto) */}
         <motion.button
-          whileTap={{ scale: 0.9 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => skip(5)}
-          className="text-white/70 hover:text-white transition-colors"
+          className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 transition-all text-xs font-bold"
         >
-           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
-          </svg>
+          +5s
         </motion.button>
       </div>
 
       {/* Velocidades */}
-      <div className="flex justify-center gap-2 mb-6">
+      <div className="flex justify-center gap-2 mb-8">
         {speeds.map((speed) => (
           <button
             key={speed}
             onClick={() => changeSpeed(speed)}
-            className={`px-3 py-1 rounded text-xs font-bold transition-all ${
-              playbackRate === speed ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:bg-white/10'
+            className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${
+              playbackRate === speed 
+                ? 'bg-white/20 text-white' 
+                : 'bg-transparent text-white/30 hover:text-white/70'
             }`}
           >
             {speed}x
@@ -292,23 +274,23 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      <div className="border-t border-white/10 pt-4 space-y-3">
-        
-        {/* Toggle Ditado (Sem botão de espiar antes) */}
+      {/* Área do Ditado */}
+      <div className="border-t border-white/10 pt-4">
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             setShowDictation(!showDictation)
             if (!showDictation) setFeedback(null)
           }}
-          className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-            showDictation ? 'bg-white/10 text-white' : 'bg-[#E50914] text-white shadow-lg shadow-red-900/20'
+          className={`w-full py-3 rounded-lg font-medium text-sm transition-colors ${
+            showDictation 
+              ? 'bg-white/5 text-white/60' 
+              : 'bg-[#E50914]/10 text-[#E50914] hover:bg-[#E50914]/20'
           }`}
         >
-          {showDictation ? 'Fechar Modo Prática' : '✍️ Praticar Escrita (Ditado)'}
+          {showDictation ? 'Fechar Ditado' : '✍️ Praticar Escrita'}
         </motion.button>
 
-        {/* AREA DO DITADO */}
         <AnimatePresence>
           {showDictation && (
             <motion.div
@@ -317,73 +299,73 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-[#121212] rounded-xl border border-white/10 p-1 mt-2">
+              <div className="mt-4">
                 {!feedback ? (
                   <>
                     <textarea
                       value={userText}
                       onChange={(e) => setUserText(e.target.value)}
-                      placeholder="Ouça o áudio e digite o que você escutar..."
-                      className="w-full h-40 bg-transparent text-white p-4 text-base resize-none focus:outline-none placeholder-white/30 leading-relaxed"
+                      placeholder="Ouça e digite aqui..."
+                      className="w-full h-32 bg-[#121212] text-white p-4 text-sm rounded-lg border border-white/10 focus:border-[#E50914]/50 focus:outline-none resize-none leading-relaxed"
                       spellCheck={false}
                     />
-                    <div className="flex gap-2 p-2 bg-white/5 rounded-b-lg">
+                    <div className="flex justify-end mt-2">
                       <button 
                         onClick={handleCheck}
                         disabled={!userText.trim()}
-                        className="flex-1 bg-[#22C55E] hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 rounded-lg transition-colors"
+                        className="bg-[#E50914] hover:bg-[#b20710] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold py-2 px-6 rounded-lg transition-colors"
                       >
-                        Verificar Resposta
+                        Verificar
                       </button>
                     </div>
                   </>
                 ) : (
-                  // --- AREA DE FEEDBACK VISUAL ---
-                  <div className="p-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <span className="text-white/50 text-sm">Sua precisão:</span>
-                      <span className={`text-xl font-bold ${feedback.score >= 80 ? 'text-[#22C55E]' : 'text-[#E50914]'}`}>
+                  // FEEDBACK DISCRETO
+                  <div className="bg-[#121212] rounded-lg p-4 border border-white/10">
+                    <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-2">
+                      <span className="text-white/40 text-xs uppercase tracking-wider">Resultado</span>
+                      <span className={`text-lg font-bold ${feedback.score >= 80 ? 'text-green-500' : 'text-red-500'}`}>
                         {feedback.score}%
                       </span>
                     </div>
 
-                    <div className="bg-black/40 rounded-lg p-4 text-base leading-loose whitespace-pre-wrap">
+                    <div className="text-sm leading-loose text-white/80 whitespace-pre-wrap font-light">
                       {feedback.diffResult.map((item, idx) => {
-                        // Renderização condicional dos tokens
+                        // Correto (texto normal, levemente brilhante)
                         if (item.type === 'correct') {
-                          return <span key={idx} className="text-white/90 mr-1.5">{item.word}</span>
+                          return <span key={idx} className="text-white mr-1.5">{item.word}</span>
                         }
+                        
+                        // Faltou (Underline discreto)
                         if (item.type === 'missing') {
                           return (
-                            <span key={idx} className="inline-flex flex-col items-center mx-1 align-middle group relative">
-                              <span className="h-4 w-8 border-b-2 border-[#E50914]/50 border-dashed"></span>
-                              <span className="absolute -top-4 text-[10px] text-[#E50914] bg-red-900/90 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                Faltou: {item.word}
-                              </span>
+                            <span key={idx} className="inline-block mx-1 text-red-400/50 border-b border-red-500/50 border-dashed px-1" title={`Faltou: ${item.word}`}>
+                              ___
                             </span>
                           )
                         }
+                        
+                        // Extra (Riscado discreto)
                         if (item.type === 'extra') {
-                          return <span key={idx} className="text-[#E50914] line-through decoration-2 decoration-[#E50914]/50 mr-1.5 opacity-60">{item.word}</span>
+                          return <span key={idx} className="text-red-400 line-through decoration-1 opacity-60 mr-1.5">{item.word}</span>
                         }
-                        // Wrong (Substituição)
+                        
+                        // Errado (Vermelho riscado + Verde sugerido)
                         return (
-                          <span key={idx} className="inline-block mr-1.5 relative group">
-                            <span className="text-[#E50914] line-through decoration-2">{item.word}</span>
-                            <span className="text-[#22C55E] font-medium ml-1 underline decoration-dotted underline-offset-4 cursor-help">
-                              {item.expected}
-                            </span>
+                          <span key={idx} className="inline-block mr-1.5">
+                            <span className="text-red-400 line-through decoration-1 mr-1">{item.word}</span>
+                            <span className="text-green-400 font-medium">{item.expected}</span>
                           </span>
                         )
                       })}
                     </div>
 
-                    <div className="mt-4 flex gap-3">
+                    <div className="mt-4 text-right">
                         <button 
                           onClick={handleReset}
-                          className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-3 rounded-lg transition-colors"
+                          className="text-xs text-white/40 hover:text-white transition-colors underline decoration-dotted"
                         >
-                          Tentar Novamente
+                          Tentar novamente
                         </button>
                     </div>
                   </div>

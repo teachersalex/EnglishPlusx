@@ -224,7 +224,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
       {/* Controles Principais */}
       <div className="flex items-center justify-center gap-6 mb-8">
-        {/* Botão Voltar 5s (Com Texto) */}
+        {/* Botão Voltar 5s */}
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => skip(-5)}
@@ -247,7 +247,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
           )}
         </motion.button>
 
-        {/* Botão Avançar 5s (Com Texto) */}
+        {/* Botão Avançar 5s */}
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => skip(5)}
@@ -274,7 +274,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      {/* Área do Ditado */}
+      {/* Botão de Ditado (Modificado: Cinza e sem Emoji) */}
       <div className="border-t border-white/10 pt-4">
         <motion.button
           whileTap={{ scale: 0.98 }}
@@ -285,10 +285,10 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
           className={`w-full py-3 rounded-lg font-medium text-sm transition-colors ${
             showDictation 
               ? 'bg-white/5 text-white/60' 
-              : 'bg-[#E50914]/10 text-[#E50914] hover:bg-[#E50914]/20'
+              : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
-          {showDictation ? 'Fechar Ditado' : '✍️ Praticar Escrita'}
+          {showDictation ? 'Fechar Ditado' : 'Praticar Escrita'}
         </motion.button>
 
         <AnimatePresence>
@@ -320,7 +320,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                     </div>
                   </>
                 ) : (
-                  // FEEDBACK DISCRETO
+                  // FEEDBACK DISCRETO (Sem Emojis)
                   <div className="bg-[#121212] rounded-lg p-4 border border-white/10">
                     <div className="mb-4 flex items-center justify-between border-b border-white/5 pb-2">
                       <span className="text-white/40 text-xs uppercase tracking-wider">Resultado</span>
@@ -331,7 +331,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
                     <div className="text-sm leading-loose text-white/80 whitespace-pre-wrap font-light">
                       {feedback.diffResult.map((item, idx) => {
-                        // Correto (texto normal, levemente brilhante)
+                        // Correto (texto normal)
                         if (item.type === 'correct') {
                           return <span key={idx} className="text-white mr-1.5">{item.word}</span>
                         }

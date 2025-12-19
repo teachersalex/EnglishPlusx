@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MiniModal from './modals/MiniModal'
 import FinalModal from './modals/FinalModal'
 import Header from './Header'
-import AudioPlayer from './AudioPlayer'
+import AudioPlayer from './AudioPlayer.jsx'
 
 function EpisodePage() {
   const { id, episodeId } = useParams()

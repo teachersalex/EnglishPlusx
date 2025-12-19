@@ -246,7 +246,7 @@ It is a perfect gift.`,
       {
         id: 1,
         title: "Alone",
-        duration: "45 sec",
+        duration: "35 sec",
         audioUrl: "/audio/photo_e1.mp3",
         text: `The room is dark.
 It is raining outside.
@@ -282,7 +282,7 @@ She cries.
       {
         id: 2,
         title: "The Knock",
-        duration: "45 sec",
+        duration: "25 sec",
         audioUrl: "/audio/photo_e2.mp3",
         text: `Toc. Toc. Toc.
 Someone is at the door.
@@ -319,7 +319,7 @@ A blue letter.`,
       {
         id: 3,
         title: "The Letter",
-        duration: "45 sec",
+        duration: "30 sec",
         audioUrl: "/audio/photo_e3.mp3",
         text: `Anna opens the letter.
 Her hands shake.
@@ -355,7 +355,7 @@ She runs to the door again.`,
       {
         id: 4,
         title: "The Flowers",
-        duration: "45 sec",
+        duration: "30 sec",
         audioUrl: "/audio/photo_e4.mp3",
         text: `She opens the door.
 John is there.

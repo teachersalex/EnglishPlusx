@@ -265,7 +265,7 @@ We laugh together.`,
       {
         id: 1,
         title: "The Evidence",
-        duration: "1 min",
+        duration: "35 sec",
         audioUrl: "/audio/lipstick_e1.mp3",
         text: `Lisa is in the car.
 It is her husband's car.
@@ -305,7 +305,7 @@ Lisa is angry.`,
       {
         id: 2,
         title: "The Secret Call",
-        duration: "1 min",
+        duration: "33 sec",
         audioUrl: "/audio/lipstick_e2.mp3",
         text: `It is night.
 David is in the kitchen.
@@ -345,7 +345,7 @@ David has a girlfriend.`,
       {
         id: 3,
         title: "The Blonde Woman",
-        duration: "1 min",
+        duration: "31 sec",
         audioUrl: "/audio/lipstick_e3.mp3",
         text: `The next day, Lisa walks on the street.
 She sees David's car.
@@ -383,7 +383,7 @@ She calls David.`,
       {
         id: 4,
         title: "The Truth",
-        duration: "1 min",
+        duration: "46 sec",
         audioUrl: "/audio/lipstick_e4.mp3",
         text: `Lisa runs to the car.
 "David!" she shouts.

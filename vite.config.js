@@ -1,14 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import tailwindcss from '@tailwindcss/vite' /* <--- O SEGREDINHO DO V4 */
 
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(), /* <--- Ativa o Tailwind v4 */
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true // Permite testar o PWA mesmo rodando localmente
+        enabled: true
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -22,7 +24,7 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'vite.svg', /* Usando o logo do Vite temporariamente pois sabemos que ele existe */
+            src: 'vite.svg',
             sizes: '192x192',
             type: 'image/svg+xml',
             purpose: 'any maskable'

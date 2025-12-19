@@ -1,13 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* --- ANIMAÇÕES GLOBAIS (The Juice) --- */
 
 /* 1. Efeito de Respiração (Capa do Áudio) */
 @keyframes breathe {
   0% { transform: scale(1); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
-  50% { transform: scale(1.02); box-shadow: 0 20px 25px -5px rgba(229, 9, 20, 0.3); } /* Glow sutil vermelho */
+  50% { transform: scale(1.02); box-shadow: 0 20px 25px -5px rgba(229, 9, 20, 0.3); }
   100% { transform: scale(1); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
 }
 
@@ -35,13 +31,13 @@
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-25deg);
-  animation: shine 6s infinite; /* Roda a cada 6 segundos */
+  animation: shine 6s infinite;
 }
 
 @keyframes shine {
   0% { left: -100%; }
-  20% { left: 200%; } /* Passa rápido */
-  100% { left: 200%; } /* Espera o resto do tempo */
+  20% { left: 200%; }
+  100% { left: 200%; }
 }
 
 /* 3. Barra de Progresso Lisa */
@@ -49,7 +45,7 @@
   transition: width 0.15s linear;
 }
 
-/* 4. Scrollbar Personalizada (Opcional, mas elegante) */
+/* 4. Scrollbar Personalizada */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -64,18 +60,15 @@
   background: #a8a8a8; 
 }
 
-/* ... (Mantenha o código anterior) ... */
-
 /* 5. Barra de Progresso "Liquid Light" */
 @keyframes flow-shine {
   0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; } /* Move o brilho */
+  100% { background-position: 200% 50%; }
 }
 
 .sexy-progress-bar {
-  /* O gradiente: Vermelho Base -> Vermelho Claro -> Vermelho Base */
   background: linear-gradient(90deg, #E50914 0%, #ff6b6b 50%, #E50914 100%);
-  background-size: 200% 100%; /* Aumenta o tamanho para poder animar */
-  animation: flow-shine 3s linear infinite; /* Animação contínua */
-  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6); /* O Glow externo elegante */
+  background-size: 200% 100%;
+  animation: flow-shine 3s linear infinite;
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6);
 }

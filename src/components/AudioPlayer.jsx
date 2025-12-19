@@ -1,18 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- CONFIGURAÇÕES E UTILITÁRIOS ---
+// --- CONFIGURAÇÕES E UTILITÁRIOS (Inalterados) ---
 
 const CONTRACTIONS = {
-  // Com apóstrofo (Padrão)
   "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
   "we're": "we are", "they're": "they are", "isn't": "is not", "aren't": "are not",
   "wasn't": "was not", "weren't": "were not", "don't": "do not", "doesn't": "does not",
   "didn't": "did not", "won't": "will not", "can't": "can not", "cannot": "can not",
   "couldn't": "could not", "that's": "that is", "what's": "what is", "let's": "let us",
   "gonna": "going to", "wanna": "want to", "gotta": "got to",
-  
-  // Sem apóstrofo (Apenas os seguros)
   "im": "i am", "youre": "you are", "hes": "he is", "shes": "she is",
   "isnt": "is not", "arent": "are not", "wasnt": "was not", "werent": "were not",
   "dont": "do not", "doesnt": "does not", "didnt": "did not", "wont": "will not",
@@ -33,20 +30,16 @@ const HEADER_TRIGGERS = new Set([
 
 function normalizeAndTokenize(text) {
   if (!text) return []
-  
   let clean = text.toLowerCase()
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
   clean = clean.replace(/[’‘‛`´]/g, "'")
   clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
-  
   let tokens = clean.split(/\s+/).filter(w => w)
   let expandedTokens = []
-
   tokens.forEach(token => {
     const tokenClean = token.replace(/^'+|'+$/g, '')
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
-
     if (CONTRACTIONS[tokenClean]) {
       expandedTokens.push(...CONTRACTIONS[tokenClean].split(' '))
     } else if (CONTRACTIONS[tokenNoApostrophe]) {
@@ -55,7 +48,6 @@ function normalizeAndTokenize(text) {
       expandedTokens.push(tokenNoApostrophe)
     }
   })
-
   return expandedTokens
 }
 
@@ -63,7 +55,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
   const userTokens = normalizeAndTokenize(userText)
   const titleTokens = normalizeAndTokenize(episodeTitle)
-
   const diffResult = []
   let uIndex = 0
   let oIndex = 0
@@ -98,9 +89,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
         break
       }
     }
-
     const threshold = Math.ceil(titleTokens.length * 0.6)
-    
     if (matchCount >= threshold) {
        const origStartsWithTitle = titleTokens.slice(0, matchCount).every((t, i) => origTokens[i] === t)
        if (!origStartsWithTitle) {
@@ -115,21 +104,18 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   while (oIndex < origTokens.length || uIndex < userTokens.length) {
     const origNorm = origTokens[oIndex]
     const userNorm = userTokens[uIndex]
-
     if (!origNorm && userNorm) {
       diffResult.push({ type: 'extra', word: userNorm })
       extraCount++
       uIndex++
       continue
     }
-
     if (origNorm && !userNorm) {
       diffResult.push({ type: 'missing', word: origNorm })
       missingCount++
       oIndex++
       continue
     }
-
     if (origNorm === userNorm) {
       diffResult.push({ type: 'correct', word: origNorm })
       correctCount++
@@ -137,9 +123,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
       uIndex++
       continue
     }
-
     let foundMatch = false
-
     for (let offset = 1; offset <= 3; offset++) {
       if (uIndex + offset < userTokens.length) {
         if (origNorm === userTokens[uIndex + offset]) {
@@ -154,7 +138,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
       }
     }
     if (foundMatch) continue
-
     for (let offset = 1; offset <= 3; offset++) {
       if (oIndex + offset < origTokens.length) {
         if (userNorm === origTokens[oIndex + offset]) {
@@ -169,7 +152,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
       }
     }
     if (foundMatch) continue
-
     diffResult.push({ type: 'wrong', word: userNorm, expected: origNorm })
     wrongCount++
     oIndex++
@@ -179,7 +161,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const totalRelevant = origTokens.length + extraCount
   const rawScore = totalRelevant > 0 ? (correctCount / totalRelevant) * 100 : 0
   const score = Math.min(100, Math.round(rawScore))
-  
   return { diffResult, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
 }
 
@@ -211,12 +192,10 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     const audio = audioRef.current
     if (!audio) return
     const updateTime = () => setCurrentTime(audio.currentTime)
-    
     const handleEnded = () => {
       setIsPlaying(false)
       if (onTimeUpdate) onTimeUpdate(audio.currentTime)
     }
-
     audio.addEventListener('timeupdate', updateTime)
     audio.addEventListener('ended', handleEnded)
     return () => {
@@ -236,15 +215,12 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   }, [onTimeUpdate])
 
   const handlePause = () => {
-    if (onTimeUpdate && audioRef.current) {
-      onTimeUpdate(audioRef.current.currentTime)
-    }
+    if (onTimeUpdate && audioRef.current) onTimeUpdate(audioRef.current.currentTime)
   }
 
   const togglePlay = async () => {
     const audio = audioRef.current
     if (!audio) return
-
     try {
       if (isPlaying) {
         audio.pause()
@@ -301,7 +277,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
-      {/* Capa com Efeito Breathing */}
+      {/* Capa com Breathing Effect */}
       <div className="mb-6 perspective-1000">
         <img 
           src={coverImage} 
@@ -311,19 +287,18 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         <p className="text-white font-bold text-center mt-3">{episodeTitle}</p>
       </div>
 
-      {/* Barra de progresso Suave */}
+      {/* Barra de progresso com Efeito Liquid Light (SEXY-PROGRESS-BAR) */}
       <div className="mb-6">
         <div 
           className="h-2 bg-white/20 rounded-full cursor-pointer group"
           onClick={handleProgressClick}
         >
-          {/* Adicionada classe smooth-progress para deslizar */}
           <motion.div 
-            className="h-2 bg-[#E50914] rounded-full smooth-progress relative" 
+            className="h-2 rounded-full smooth-progress relative sexy-progress-bar" 
             style={{ width: `${progress}%` }} 
           >
-            {/* Bolinha na ponta da barra (só aparece no hover da barra) */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity" />
+            {/* Opcional: Uma pontinha branca brilhante extra */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity" />
           </motion.div>
         </div>
         <div className="flex justify-between mt-2 text-white/50 text-sm">
@@ -364,28 +339,26 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      {/* UX - Praticar Escrita com SHINE */}
+      {/* UX - Praticar Escrita (DISCRETO E ELEGANTE) */}
       {transcript && (
-        <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
+        <div className="mt-4 border-t border-white/10 pt-4 text-center">
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => { 
               const newState = !showDictation
               setShowDictation(newState)
-              if (newState) {
-                setFeedback(null)
-              }
+              if (newState) setFeedback(null)
             }}
-            // Adicionei 'shine-effect' e 'relative' aqui
-            className="w-full py-3 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
+            // MUDANÇA: 'w-fit mx-auto px-6 py-2' torna ele um botão pílula centralizado e menor
+            className="w-fit mx-auto px-6 py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-full text-[#F59E0B] text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             {showDictation ? 'Fechar Ditado' : 'Praticar Escrita'}
           </motion.button>
 
           <AnimatePresence>
             {showDictation && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-3 bg-white/5 rounded-xl overflow-hidden border border-white/5">
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 text-left bg-white/5 rounded-xl overflow-hidden border border-white/5">
                 {!feedback ? (
                   <div className="p-4">
                     <p className="text-white/70 text-sm mb-3">Ouça e escreva:</p>
@@ -400,7 +373,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                   </div>
                 ) : (
                   <div className="p-4">
-                    {/* Exibição do Feedback (Mantida igual) */}
+                    {/* (Bloco de Feedback mantém-se igual) */}
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
                       <div>
                         <span className="text-white/50 text-xs uppercase tracking-wider">Pontuação</span>

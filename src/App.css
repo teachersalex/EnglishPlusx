@@ -63,3 +63,19 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8; 
 }
+
+/* ... (Mantenha o código anterior) ... */
+
+/* 5. Barra de Progresso "Liquid Light" */
+@keyframes flow-shine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; } /* Move o brilho */
+}
+
+.sexy-progress-bar {
+  /* O gradiente: Vermelho Base -> Vermelho Claro -> Vermelho Base */
+  background: linear-gradient(90deg, #E50914 0%, #ff6b6b 50%, #E50914 100%);
+  background-size: 200% 100%; /* Aumenta o tamanho para poder animar */
+  animation: flow-shine 3s linear infinite; /* Animação contínua */
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.6); /* O Glow externo elegante */
+}

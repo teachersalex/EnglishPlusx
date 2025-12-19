@@ -7,11 +7,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      devOptions: {
+        enabled: true // Permite testar o PWA mesmo rodando localmente
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Teacher Alex English+',
+        name: 'EnglishPlus+ Alex',
         short_name: 'English+',
-        description: 'Aprenda inglês com séries de áudio',
+        description: 'App de Inglês do Teacher Alex',
         theme_color: '#1A1A1A',
         background_color: '#1A1A1A',
         display: 'standalone',
@@ -19,13 +22,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/vite.svg', /* Usando o logo padrão por enquanto pra ser rápido */
+            src: 'vite.svg', /* Usando o logo do Vite temporariamente pois sabemos que ele existe */
             sizes: '192x192',
             type: 'image/svg+xml',
             purpose: 'any maskable'
           },
           {
-            src: '/vite.svg',
+            src: 'vite.svg',
             sizes: '512x512',
             type: 'image/svg+xml',
             purpose: 'any maskable'

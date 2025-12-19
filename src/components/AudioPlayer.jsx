@@ -27,7 +27,6 @@ const NUMBER_WORDS = {
 
 const NUMBER_WORD_SET = new Set(Object.values(NUMBER_WORDS))
 
-// Palavras que ativam o modo "Ignorar Cabeçalho"
 const HEADER_TRIGGERS = new Set([
   'episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'
 ])
@@ -36,24 +35,15 @@ function normalizeAndTokenize(text) {
   if (!text) return []
   
   let clean = text.toLowerCase()
-  
-  // 1. Remove acentos (NFD)
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
-  
-  // 2. Normaliza TODOS os tipos de apóstrofo/aspas para o padrão reto (')
   clean = clean.replace(/[’‘‛`´]/g, "'")
-
-  // 3. Converte números digitais (0-12) isolados
   clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
-
-  // 4. Limpeza: Mantém letras, números, espaços E APÓSTROFOS
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   
   let tokens = clean.split(/\s+/).filter(w => w)
   let expandedTokens = []
 
   tokens.forEach(token => {
-    // Tenta expandir com e sem apóstrofo
     const tokenClean = token.replace(/^'+|'+$/g, '')
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
 
@@ -82,7 +72,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   let missingCount = 0
   let wrongCount = 0
 
-  // --- LÓGICA DE CABEÇALHO ---
   while(uIndex < userTokens.length) {
     const word = userTokens[uIndex]
     if (HEADER_TRIGGERS.has(word)) {
@@ -100,7 +89,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
   }
 
-  // --- LÓGICA DE TÍTULO ---
   if (titleTokens.length > 0 && uIndex < userTokens.length) {
     let matchCount = 0
     for (let i = 0; i < titleTokens.length; i++) {
@@ -124,7 +112,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
   }
 
-  // --- COMPARAÇÃO ---
   while (oIndex < origTokens.length || uIndex < userTokens.length) {
     const origNorm = origTokens[oIndex]
     const userNorm = userTokens[uIndex]
@@ -153,7 +140,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
 
     let foundMatch = false
 
-    // A: Extra
     for (let offset = 1; offset <= 3; offset++) {
       if (uIndex + offset < userTokens.length) {
         if (origNorm === userTokens[uIndex + offset]) {
@@ -169,7 +155,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
     if (foundMatch) continue
 
-    // B: Missing
     for (let offset = 1; offset <= 3; offset++) {
       if (oIndex + offset < origTokens.length) {
         if (userNorm === origTokens[oIndex + offset]) {
@@ -185,7 +170,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
     if (foundMatch) continue
 
-    // C: Erro
     diffResult.push({ type: 'wrong', word: userNorm, expected: origNorm })
     wrongCount++
     oIndex++
@@ -223,13 +207,11 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     return () => audio.removeEventListener('loadedmetadata', handleLoaded)
   }, [initialTime])
 
-  // Lógica de update de tempo e Save on Ended
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
     const updateTime = () => setCurrentTime(audio.currentTime)
     
-    // Novo handler de fim: para e SALVA
     const handleEnded = () => {
       setIsPlaying(false)
       if (onTimeUpdate) onTimeUpdate(audio.currentTime)
@@ -243,7 +225,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     }
   }, [onTimeUpdate])
 
-  // Auto-save periódico
   useEffect(() => {
     if (!onTimeUpdate) return
     const interval = setInterval(() => {
@@ -320,19 +301,30 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
-      {/* Capa */}
-      <div className="mb-6">
-        <img src={coverImage} alt={episodeTitle} className="w-full h-48 object-cover rounded-xl shadow-lg" />
+      {/* Capa com Efeito Breathing */}
+      <div className="mb-6 perspective-1000">
+        <img 
+          src={coverImage} 
+          alt={episodeTitle} 
+          className={`w-full h-48 object-cover rounded-xl transition-transform duration-500 ${isPlaying ? 'breathing-cover' : ''}`} 
+        />
         <p className="text-white font-bold text-center mt-3">{episodeTitle}</p>
       </div>
 
-      {/* Barra de progresso */}
+      {/* Barra de progresso Suave */}
       <div className="mb-6">
         <div 
-          className="h-2 bg-white/20 rounded-full cursor-pointer"
+          className="h-2 bg-white/20 rounded-full cursor-pointer group"
           onClick={handleProgressClick}
         >
-          <motion.div className="h-2 bg-[#E50914] rounded-full" style={{ width: `${progress}%` }} />
+          {/* Adicionada classe smooth-progress para deslizar */}
+          <motion.div 
+            className="h-2 bg-[#E50914] rounded-full smooth-progress relative" 
+            style={{ width: `${progress}%` }} 
+          >
+            {/* Bolinha na ponta da barra (só aparece no hover da barra) */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity" />
+          </motion.div>
         </div>
         <div className="flex justify-between mt-2 text-white/50 text-sm">
           <span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span>
@@ -341,15 +333,21 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
       {/* Controles */}
       <div className="flex items-center justify-center gap-4 mb-6">
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(-5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20">-5s</motion.button>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={togglePlay} className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#B20710]">
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(-5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20 hover:scale-105 transition-all">-5s</motion.button>
+        
+        <motion.button 
+          whileTap={{ scale: 0.9 }} 
+          onClick={togglePlay} 
+          className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-[0_0_20px_rgba(229,9,20,0.6)] hover:scale-105 transition-all z-10"
+        >
           {isPlaying ? (
             <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
           ) : (
             <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           )}
         </motion.button>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20">+5s</motion.button>
+        
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20 hover:scale-105 transition-all">+5s</motion.button>
       </div>
 
       {/* Velocidades */}
@@ -359,14 +357,14 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
             key={speed}
             whileTap={{ scale: 0.95 }}
             onClick={() => changeSpeed(speed)}
-            className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${playbackRate === speed ? 'bg-[#E50914] text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${playbackRate === speed ? 'bg-[#E50914] text-white shadow-[0_0_10px_rgba(229,9,20,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             {speed}x
           </motion.button>
         ))}
       </div>
 
-      {/* UX */}
+      {/* UX - Praticar Escrita com SHINE */}
       {transcript && (
         <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
           <motion.button
@@ -378,7 +376,8 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                 setFeedback(null)
               }
             }}
-            className="w-full py-3 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20"
+            // Adicionei 'shine-effect' e 'relative' aqui
+            className="w-full py-3 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-xl text-[#F59E0B] font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             {showDictation ? 'Fechar Ditado' : 'Praticar Escrita'}
@@ -401,6 +400,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                   </div>
                 ) : (
                   <div className="p-4">
+                    {/* Exibição do Feedback (Mantida igual) */}
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
                       <div>
                         <span className="text-white/50 text-xs uppercase tracking-wider">Pontuação</span>

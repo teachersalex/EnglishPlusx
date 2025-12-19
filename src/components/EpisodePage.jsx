@@ -260,40 +260,67 @@ function EpisodePage() {
           </div>
         </div>
 
-        {/* Quiz */}
+        {/* Quiz com UX Melhorada */}
         <motion.div
           key={`quiz-${currentQuestionIndex}`}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-2xl p-6 shadow-lg"
+          className="bg-white rounded-2xl p-6 shadow-lg border-b-4 border-[#000000]/5"
         >
           <h2 className="text-[#E50914] text-sm font-bold mb-2">QUIZ</h2>
           <h3 className="text-[#1A1A1A] text-xl font-bold mb-6">{currentQuestion.question}</h3>
           
           <div className="space-y-3">
             {currentQuestion.options.map((option, index) => {
-              let styles = "bg-[#F0F0F0] hover:bg-[#E5E5E5]"
               
-              if (selectedAnswer !== null) {
-                if (index === selectedAnswer) {
-                  if (lastAnswerCorrect) {
-                    styles = "bg-[#22C55E] text-white"
-                  } else {
-                    styles = "bg-[#EF4444] text-white"
-                  }
+              // Estado Visual
+              const isSelected = selectedAnswer === index
+              const showResult = selectedAnswer !== null
+              const isCorrectAnswer = index === currentQuestion.correctAnswer
+              
+              // Base Style
+              let styles = "bg-[#F5F5F5] text-[#1A1A1A] border-2 border-transparent"
+              let icon = null
+
+              if (showResult) {
+                if (isSelected) {
+                   if (lastAnswerCorrect) {
+                     styles = "bg-[#22C55E]/10 border-[#22C55E] text-[#15803d]" // Verde sucesso
+                     icon = (
+                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                         <svg className="w-6 h-6 text-[#22C55E]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                       </motion.div>
+                     )
+                   } else {
+                     styles = "bg-[#EF4444]/10 border-[#EF4444] text-[#B91C1C]" // Vermelho erro
+                     icon = (
+                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                         <svg className="w-6 h-6 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                       </motion.div>
+                     )
+                   }
+                } else if (isCorrectAnswer && !lastAnswerCorrect) {
+                  // Se errou, mostra qual era a certa discretamente
+                  styles = "bg-white border-[#22C55E]/30 opacity-60" 
+                } else {
+                  styles = "bg-[#F5F5F5] opacity-50"
                 }
+              } else {
+                // Estado Normal (Hover)
+                styles = "bg-[#F5F5F5] hover:bg-[#EAEAEA] hover:border-[#D4D4D4] cursor-pointer"
               }
 
               return (
                 <motion.button
                   key={index}
-                  whileHover={selectedAnswer === null ? { scale: 1.02 } : {}}
-                  whileTap={selectedAnswer === null ? { scale: 0.98 } : {}}
+                  whileHover={!showResult ? { scale: 1.01, y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" } : {}}
+                  whileTap={!showResult ? { scale: 0.98 } : {}}
                   onClick={() => handleAnswer(index)}
                   disabled={selectedAnswer !== null}
-                  className={`w-full p-4 rounded-xl text-left font-medium transition-all ${styles}`}
+                  className={`w-full p-4 rounded-xl text-left font-medium transition-all flex justify-between items-center ${styles}`}
                 >
-                  {option}
+                  <span>{option}</span>
+                  {icon}
                 </motion.button>
               )
             })}

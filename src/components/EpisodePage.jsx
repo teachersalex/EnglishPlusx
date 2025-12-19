@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MiniModal from './modals/MiniModal'
 import FinalModal from './modals/FinalModal'
 import Header from './Header'
-import AudioPlayer from './AudioPlayer.jsx'
+import AudioPlayer from './AudioPlayer'
 
 function EpisodePage() {
   const { id, episodeId } = useParams()
@@ -20,6 +20,9 @@ function EpisodePage() {
   const [showFinalModal, setShowFinalModal] = useState(false)
   const [audioTime, setAudioTime] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(true)
+  
+  // NOVO: Estado para controlar a visibilidade do Quiz
+  const [showQuiz, setShowQuiz] = useState(false)
   
   const { user, updateUserXP, saveProgress, getProgress } = useAuth()
 
@@ -37,6 +40,7 @@ function EpisodePage() {
     setAudioTime(0)
     setLoadingProgress(true)
     setLastAnswerCorrect(false)
+    setShowQuiz(false) // Quiz começa fechado
   }, [id, episodeId])
 
   // Carrega progresso DEPOIS de resetar
@@ -53,6 +57,11 @@ function EpisodePage() {
         setCurrentQuestionIndex(progress.currentQuestion || 0)
         setScore(progress.score || 0)
         setAudioTime(progress.audioTime || 0)
+        
+        // UX: Se já começou a responder, mostra o quiz aberto
+        if ((progress.currentQuestion || 0) > 0) {
+          setShowQuiz(true)
+        }
       }
       
       setLoadingProgress(false)
@@ -234,7 +243,7 @@ function EpisodePage() {
           key={`${id}-${episodeId}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6"
         >
           <AudioPlayer 
             audioUrl={episode.audioUrl} 
@@ -246,86 +255,105 @@ function EpisodePage() {
           />
         </motion.div>
 
-        {/* Progresso do Quiz */}
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-[#6B7280] text-sm">Pergunta {currentQuestionIndex + 1} de {totalQuestions}</span>
-          <div className="flex-1 h-2 bg-white rounded-full overflow-hidden">
-            {episode.questions.map((_, idx) => (
-              <motion.div
-                key={idx}
-                className={`inline-block h-full ${idx <= currentQuestionIndex ? 'bg-[#E50914]' : 'bg-[#E5E5E5]'}`}
-                style={{ width: `${100 / totalQuestions}%` }}
-              />
-            ))}
-          </div>
+        {/* PILL DO QUIZ - O Toggle fica aqui */}
+        <div className="text-center mb-6">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowQuiz(!showQuiz)}
+            className={`
+              w-fit mx-auto px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 border shadow-sm
+              ${showQuiz 
+                ? 'bg-[#E50914]/10 text-[#E50914] border-[#E50914]/20' 
+                : 'bg-white text-[#1A1A1A] border-gray-200 hover:border-gray-300'
+              }
+            `}
+          >
+            {showQuiz ? (
+               // Ícone de "Fechar" (Chevron Up ou X)
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+            ) : (
+               // Ícone de "Quiz/Perguntas"
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+            )}
+            {showQuiz ? 'Esconder Perguntas' : 'Responder Quiz'}
+          </motion.button>
         </div>
 
-        {/* Quiz com UX Melhorada */}
-        <motion.div
-          key={`quiz-${currentQuestionIndex}`}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-2xl p-6 shadow-lg border-b-4 border-[#000000]/5"
-        >
-          <h2 className="text-[#E50914] text-sm font-bold mb-2">QUIZ</h2>
-          <h3 className="text-[#1A1A1A] text-xl font-bold mb-6">{currentQuestion.question}</h3>
-          
-          <div className="space-y-3">
-            {currentQuestion.options.map((option, index) => {
-              
-              // Estado Visual
-              const isSelected = selectedAnswer === index
-              const showResult = selectedAnswer !== null
-              const isCorrectAnswer = index === currentQuestion.correctAnswer
-              
-              // Base Style
-              let styles = "bg-[#F5F5F5] text-[#1A1A1A] border-2 border-transparent"
-              let icon = null
+        {/* ÁREA EXPANSÍVEL DO QUIZ */}
+        <AnimatePresence>
+          {showQuiz && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              {/* Progresso do Quiz */}
+              <div className="mb-4 flex items-center gap-2 px-2">
+                <span className="text-[#6B7280] text-sm">Pergunta {currentQuestionIndex + 1} de {totalQuestions}</span>
+                <div className="flex-1 h-2 bg-white rounded-full overflow-hidden shadow-sm">
+                  {episode.questions.map((_, idx) => (
+                    <motion.div
+                      key={idx}
+                      className={`inline-block h-full ${idx <= currentQuestionIndex ? 'bg-[#E50914]' : 'bg-[#E5E5E5]'}`}
+                      style={{ width: `${100 / totalQuestions}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
 
-              if (showResult) {
-                if (isSelected) {
-                   if (lastAnswerCorrect) {
-                     styles = "bg-[#22C55E]/10 border-[#22C55E] text-[#15803d]" // Verde sucesso
-                     icon = (
-                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                         <svg className="w-6 h-6 text-[#22C55E]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                       </motion.div>
-                     )
-                   } else {
-                     styles = "bg-[#EF4444]/10 border-[#EF4444] text-[#B91C1C]" // Vermelho erro
-                     icon = (
-                       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                         <svg className="w-6 h-6 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                       </motion.div>
-                     )
-                   }
-                } else if (isCorrectAnswer && !lastAnswerCorrect) {
-                  // Se errou, mostra qual era a certa discretamente
-                  styles = "bg-white border-[#22C55E]/30 opacity-60" 
-                } else {
-                  styles = "bg-[#F5F5F5] opacity-50"
-                }
-              } else {
-                // Estado Normal (Hover)
-                styles = "bg-[#F5F5F5] hover:bg-[#EAEAEA] hover:border-[#D4D4D4] cursor-pointer"
-              }
+              {/* Quiz Card */}
+              <div className="bg-white rounded-2xl p-6 shadow-lg border-b-4 border-[#000000]/5 mb-8">
+                <h2 className="text-[#E50914] text-sm font-bold mb-2">QUIZ</h2>
+                <h3 className="text-[#1A1A1A] text-xl font-bold mb-6">{currentQuestion.question}</h3>
+                
+                <div className="space-y-3">
+                  {currentQuestion.options.map((option, index) => {
+                    
+                    const isSelected = selectedAnswer === index
+                    const showResult = selectedAnswer !== null
+                    const isCorrectAnswer = index === currentQuestion.correctAnswer
+                    
+                    let styles = "bg-[#F5F5F5] text-[#1A1A1A] border-2 border-transparent"
+                    let icon = null
 
-              return (
-                <motion.button
-                  key={index}
-                  whileHover={!showResult ? { scale: 1.01, y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" } : {}}
-                  whileTap={!showResult ? { scale: 0.98 } : {}}
-                  onClick={() => handleAnswer(index)}
-                  disabled={selectedAnswer !== null}
-                  className={`w-full p-4 rounded-xl text-left font-medium transition-all flex justify-between items-center ${styles}`}
-                >
-                  <span>{option}</span>
-                  {icon}
-                </motion.button>
-              )
-            })}
-          </div>
-        </motion.div>
+                    if (showResult) {
+                      if (isSelected) {
+                        if (lastAnswerCorrect) {
+                          styles = "bg-[#22C55E]/10 border-[#22C55E] text-[#15803d]"
+                          icon = (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}><svg className="w-6 h-6 text-[#22C55E]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></motion.div>)
+                        } else {
+                          styles = "bg-[#EF4444]/10 border-[#EF4444] text-[#B91C1C]"
+                          icon = (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}><svg className="w-6 h-6 text-[#EF4444]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg></motion.div>)
+                        }
+                      } else if (isCorrectAnswer && !lastAnswerCorrect) {
+                        styles = "bg-white border-[#22C55E]/30 opacity-60" 
+                      } else {
+                        styles = "bg-[#F5F5F5] opacity-50"
+                      }
+                    } else {
+                      styles = "bg-[#F5F5F5] hover:bg-[#EAEAEA] hover:border-[#D4D4D4] cursor-pointer"
+                    }
+
+                    return (
+                      <motion.button
+                        key={index}
+                        whileHover={!showResult ? { scale: 1.01, y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" } : {}}
+                        whileTap={!showResult ? { scale: 0.98 } : {}}
+                        onClick={() => handleAnswer(index)}
+                        disabled={selectedAnswer !== null}
+                        className={`w-full p-4 rounded-xl text-left font-medium transition-all flex justify-between items-center ${styles}`}
+                      >
+                        <span>{option}</span>
+                        {icon}
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   )

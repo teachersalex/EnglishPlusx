@@ -164,7 +164,8 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   return { diffResult, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
 }
 
-export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript }) {
+// Recebendo novas props: showQuiz, setShowQuiz
+export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz }) {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -287,17 +288,17 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         <p className="text-white font-bold text-center mt-3">{episodeTitle}</p>
       </div>
 
-      {/* Barra de progresso com Efeito Liquid Light (SEXY-PROGRESS-BAR) */}
+      {/* Barra de progresso com Efeito Liquid Light */}
       <div className="mb-6">
         <div 
           className="h-2 bg-white/20 rounded-full cursor-pointer group"
           onClick={handleProgressClick}
         >
           <motion.div 
-            className="h-2 rounded-full smooth-progress relative sexy-progress-bar" 
+            className="h-2 rounded-full smooth-progress relative sexy-progress-bar bg-[#E50914]" 
             style={{ width: `${progress}%` }} 
           >
-            {/* Opcional: Uma pontinha branca brilhante extra */}
+            {/* Bolinha na ponta */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity" />
           </motion.div>
         </div>
@@ -326,7 +327,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       </div>
 
       {/* Velocidades */}
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2 mb-6">
         {speeds.map((speed) => (
           <motion.button
             key={speed}
@@ -339,27 +340,50 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      {/* UX - Praticar Escrita (DISCRETO E ELEGANTE) */}
-      {transcript && (
-        <div className="mt-4 border-t border-white/10 pt-4 text-center">
+      {/* --- ÁREA DOS BOTÕES DE AÇÃO (PILLS) --- */}
+      <div className="border-t border-white/10 pt-4 flex flex-wrap justify-center gap-3">
+        
+        {/* Botão 1: Praticar Escrita */}
+        {transcript && (
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => { 
               const newState = !showDictation
               setShowDictation(newState)
               if (newState) setFeedback(null)
+              if (newState && showQuiz) setShowQuiz(false) // Fecha o quiz se abrir a escrita
             }}
-            // MUDANÇA: 'w-fit mx-auto px-6 py-2' torna ele um botão pílula centralizado e menor
-            className="w-fit mx-auto px-6 py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-full text-[#F59E0B] text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
+            className="w-fit px-6 py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-full text-[#F59E0B] text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
             {showDictation ? 'Fechar Ditado' : 'Praticar Escrita'}
           </motion.button>
+        )}
 
-          <AnimatePresence>
-            {showDictation && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 text-left bg-white/5 rounded-xl overflow-hidden border border-white/5">
-                {!feedback ? (
+        {/* Botão 2: Responder Quiz (NOVO - Estilo Dourado) */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          // Usa a prop setShowQuiz recebida do pai
+          onClick={() => {
+             const newState = !showQuiz
+             setShowQuiz(newState)
+             if (newState && showDictation) setShowDictation(false) // Fecha a escrita se abrir o quiz
+          }}
+          className="w-fit px-6 py-2 bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 rounded-full text-[#F59E0B] text-sm font-medium transition-colors flex items-center justify-center gap-2 border border-[#F59E0B]/20 shine-effect"
+        >
+          {/* Ícone de Documento/Quiz */}
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          {showQuiz ? 'Esconder Perguntas' : 'Responder Quiz'}
+        </motion.button>
+      </div>
+
+      {/* Área de Conteúdo da Transcrição */}
+      {transcript && (
+        <AnimatePresence>
+          {showDictation && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 text-left bg-white/5 rounded-xl overflow-hidden border border-white/5">
+              {/* (Conteúdo do ditado inalterado...) */}
+              {!feedback ? (
                   <div className="p-4">
                     <p className="text-white/70 text-sm mb-3">Ouça e escreva:</p>
                     <textarea
@@ -373,7 +397,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                   </div>
                 ) : (
                   <div className="p-4">
-                    {/* (Bloco de Feedback mantém-se igual) */}
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
                       <div>
                         <span className="text-white/50 text-xs uppercase tracking-wider">Pontuação</span>
@@ -414,10 +437,9 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                     <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset} className="w-full mt-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors">Tentar Novamente</motion.button>
                   </div>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
     </div>
   )

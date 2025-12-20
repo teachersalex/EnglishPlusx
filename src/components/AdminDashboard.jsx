@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const [createLoading, setCreateLoading] = useState(false)
 
   // 🔒 SEGURANÇA BÁSICA: Coloque seu email real aqui!
-  const ADMIN_EMAIL = "seu_email_aqui@gmail.com" 
+  const ADMIN_EMAIL = "alexmg@gmail.com" 
 
   // Se não for o Alex, manda de volta pra Home
   useEffect(() => {

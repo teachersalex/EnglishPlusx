@@ -5,6 +5,7 @@ import SplashScreen from './components/SplashScreen'
 import Home from './components/Home'
 import SeriesPage from './components/SeriesPage'
 import EpisodePage from './components/EpisodePage'
+import AdminDashboard from './components/AdminDashboard'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -18,6 +19,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/series/:id" element={<SeriesPage />} />
           <Route path="/series/:id/episode/:episodeId" element={<EpisodePage />} />
         </Routes>

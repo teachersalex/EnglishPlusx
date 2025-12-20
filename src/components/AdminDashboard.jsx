@@ -10,31 +10,25 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   
-  // Estados para guardar os dados
-  const [students, setStudents] = useState([]) // Lista de alunos
-  const [loading, setLoading] = useState(true) // Carregando...
-  const [showCreateModal, setShowCreateModal] = useState(false) // Abre/fecha modal
+  // Estados
+  const [students, setStudents] = useState([]) 
+  const [loading, setLoading] = useState(true) 
+  const [showCreateModal, setShowCreateModal] = useState(false) 
 
-  // Form do novo aluno
+  // Form
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [createLoading, setCreateLoading] = useState(false)
 
-  // 🔒 SEGURANÇA BÁSICA: Coloque seu email real aqui!
-  const ADMIN_EMAIL = "alexmg@gmail.com" 
+  // --- 🔓 PORTA DESTRANCADA TEMPORARIAMENTE ---
+  // Removi o código que te chutava para fora (navigate('/'))
+  // Agora qualquer um que tiver o link entra (só para testarmos)
+  // ---------------------------------------------
 
-  // Se não for o Alex, manda de volta pra Home
-  useEffect(() => {
-    if (user && user.email !== ADMIN_EMAIL) {
-      navigate('/') 
-    }
-  }, [user, navigate])
-
-  // Função que vai no banco buscar os alunos
+  // Busca alunos
   const fetchStudents = async () => {
     setLoading(true)
     const db = getFirestore()
     try {
-      // Pega a coleção 'users' e ordena por quem entrou por último
       const q = query(collection(db, "users"), orderBy("lastActivity", "desc"))
       const querySnapshot = await getDocs(q)
       
@@ -50,20 +44,17 @@ export default function AdminDashboard() {
     }
   }
 
-  // Carrega a lista assim que você entra na tela
+  // Carrega lista ao entrar
   useEffect(() => {
-    if (user?.email === ADMIN_EMAIL) {
-      fetchStudents()
-    }
-  }, [user])
+    fetchStudents()
+  }, [])
 
-  // Função para criar o aluno quando clicar no botão do modal
+  // Criar aluno
   const handleCreate = async (e) => {
     e.preventDefault()
     setCreateLoading(true)
     try {
       await createStudentAccount(formData.email, formData.password, formData.name)
-      // Se deu certo: fecha modal, limpa form e recarrega a lista
       setShowCreateModal(false)
       setFormData({ name: '', email: '', password: '' })
       fetchStudents()
@@ -80,11 +71,10 @@ export default function AdminDashboard() {
       <Header />
       
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Cabeçalho da Página */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-[#1A1A1A]">Portal do Professor</h1>
-            <p className="text-[#6B7280]">Gestão da sua turma</p>
+            <p className="text-[#6B7280]">Modo de Teste (Sem Trava)</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -94,13 +84,12 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Tabela de Alunos */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase">Aluno</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase">XP / Nível</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase">XP</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase">Último Acesso</th>
               </tr>
             </thead>
@@ -115,23 +104,15 @@ export default function AdminDashboard() {
                     <span className="text-[#E50914] font-bold">{student.xp || 0} XP</span>
                   </td>
                   <td className="p-4 text-sm text-gray-600">
-                    {/* Aqui formatamos a data do Firebase para ler humano */}
                     {student.lastActivity?.toDate ? student.lastActivity.toDate().toLocaleString() : 'Nunca'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
-          {students.length === 0 && !loading && (
-            <div className="p-8 text-center text-gray-500">
-              Nenhum aluno encontrado. Crie o primeiro!
-            </div>
-          )}
         </div>
       </main>
 
-      {/* Modal de Criação (Janelinha que abre) */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <motion.div 
@@ -140,17 +121,16 @@ export default function AdminDashboard() {
             className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
           >
             <h2 className="text-2xl font-bold text-[#1A1A1A] mb-6">Cadastrar Aluno</h2>
-            
             <form onSubmit={handleCreate} className="space-y-4">
               <input 
-                placeholder="Nome Completo"
+                placeholder="Nome"
                 required
                 className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
               />
               <input 
-                placeholder="Email (Login)"
+                placeholder="Email"
                 type="email"
                 required
                 className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none"
@@ -165,22 +145,9 @@ export default function AdminDashboard() {
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
               />
-
               <div className="flex gap-3 mt-6">
-                <button 
-                  type="button" 
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={createLoading}
-                  className="flex-1 py-3 bg-[#1A1A1A] text-white font-bold rounded-xl hover:bg-[#333]"
-                >
-                  {createLoading ? 'Criando...' : 'Criar Aluno'}
-                </button>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button type="submit" disabled={createLoading} className="flex-1 py-3 bg-[#1A1A1A] text-white font-bold rounded-xl hover:bg-[#333]">Criar</button>
               </div>
             </form>
           </motion.div>

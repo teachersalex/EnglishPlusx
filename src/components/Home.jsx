@@ -88,9 +88,26 @@ function Home() {
     navigate(`/series/${id}`)
   }
 
+  // Arquivo: src/components/Home.jsx
+
+  // ... (muito código antes) ...
+
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
+      {/* Encontre esta linha aqui: */}
       <Header />
+
+      {/* 👇👇👇 COLE O CÓDIGO AQUI, NESSE ESPAÇO 👇👇👇 */}
+      <div className="bg-yellow-200 p-2 text-center text-black text-xs border-b border-yellow-300">
+         <p>EMAIL LOGADO: <strong>{user ? user.email : 'Nenhum'}</strong></p>
+         <p>EMAIL ESPERADO: <strong>{ADMIN_EMAIL}</strong></p>
+      </div>
+      {/* 👆👆👆 FIM DO CÓDIGO 👆👆👆 */}
+
+           
+      {/* ... (resto do código) ... */}
+
+      
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         

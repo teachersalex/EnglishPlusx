@@ -6,7 +6,6 @@ import Header from './Header'
 import UserStats from './UserStats'
 import { useAuth } from '../contexts/AuthContext'
 
-
 function SeriesCard({ series, onClick }) {
   return (
     <motion.div
@@ -50,6 +49,10 @@ function Home() {
   const { user, userData, getLastProgress } = useAuth()
   const [continueEpisode, setContinueEpisode] = useState(null)
 
+  // 🔒 CONFIGURAÇÃO DO ADMIN
+  // Apenas este email verá o botão do painel
+  const ADMIN_EMAIL = "alexmg@gmail.com"
+
   // Carrega último progresso ao montar
   useEffect(() => {
     async function loadContinue() {
@@ -79,7 +82,7 @@ function Home() {
     }
     
     loadContinue()
-  }, [user])
+  }, [user, getLastProgress])
 
   const handleSeriesClick = (id) => {
     navigate(`/series/${id}`)
@@ -90,7 +93,33 @@ function Home() {
       <Header />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-{user && <UserStats user={userData} continueEpisode={continueEpisode} />}
+        
+        {/* === ÁREA EXCLUSIVA DO PROFESSOR === */}
+        {user && user.email === ADMIN_EMAIL && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#1A1A1A] text-white p-5 rounded-2xl mb-8 flex justify-between items-center shadow-xl border-l-4 border-[#F59E0B]"
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[#F59E0B] text-black text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Admin</span>
+                <h2 className="font-bold text-lg">Portal do Professor</h2>
+              </div>
+              <p className="text-white/60 text-sm">Gerencie seus alunos, crie contas e verifique o progresso.</p>
+            </div>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-white text-[#1A1A1A] px-6 py-3 rounded-xl font-bold hover:bg-[#F0F0F0] transition-colors shadow-lg flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+              Acessar Painel
+            </button>
+          </motion.div>
+        )}
+        {/* =================================== */}
+
+        {user && <UserStats user={userData} continueEpisode={continueEpisode} />}
         
         {!user && (
           <motion.div

@@ -50,7 +50,7 @@ function Home() {
   const [continueEpisode, setContinueEpisode] = useState(null)
 
   // 🔒 CONFIGURAÇÃO DO ADMIN
-  // Apenas este email verá o botão do painel
+  // Certifique-se que seu email está EXATAMENTE assim
   const ADMIN_EMAIL = "alexmg@gmail.com"
 
   // Carrega último progresso ao montar
@@ -60,7 +60,6 @@ function Home() {
       
       const lastProgress = await getLastProgress()
       
-      // Só mostra se não estiver completo
       if (lastProgress && !lastProgress.completed) {
         const series = seriesData[lastProgress.seriesId]
         const totalQuestions = series?.episodes.find(
@@ -88,26 +87,24 @@ function Home() {
     navigate(`/series/${id}`)
   }
 
-  // Arquivo: src/components/Home.jsx
-
-  // ... (muito código antes) ...
-
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
-      {/* Encontre esta linha aqui: */}
       <Header />
 
-      {/* 👇👇👇 COLE O CÓDIGO AQUI, NESSE ESPAÇO 👇👇👇 */}
-      <div className="bg-yellow-200 p-2 text-center text-black text-xs border-b border-yellow-300">
-         <p>EMAIL LOGADO: <strong>{user ? user.email : 'Nenhum'}</strong></p>
-         <p>EMAIL ESPERADO: <strong>{ADMIN_EMAIL}</strong></p>
+      {/* ================================================= */}
+      {/* 🟡 DEBUG FLUTUANTE (FIXO NO RODAPÉ) */}
+      {/* ================================================= */}
+      <div className="fixed bottom-0 left-0 w-full bg-yellow-300 text-black p-4 z-[9999] shadow-2xl border-t-4 border-black text-center font-mono text-sm">
+         <p>LOGADO NO GOOGLE COMO: <strong className="bg-white px-2 py-1 rounded">{user ? user.email : 'DESLOGADO'}</strong></p>
+         <p className="mt-2">O CÓDIGO ESPERA: <strong className="bg-white px-2 py-1 rounded">{ADMIN_EMAIL}</strong></p>
+         
+         {user && user.email === ADMIN_EMAIL ? (
+            <p className="mt-2 text-green-800 font-bold font-sans">✅ EMAILS BATEM! O BOTÃO DEVE APARECER.</p>
+         ) : (
+            <p className="mt-2 text-red-600 font-bold font-sans">❌ NÃO BATEM. VERIFIQUE SE TEM LETRA MAIÚSCULA.</p>
+         )}
       </div>
-      {/* 👆👆👆 FIM DO CÓDIGO 👆👆👆 */}
-
-           
-      {/* ... (resto do código) ... */}
-
-      
+      {/* ================================================= */}
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         
@@ -123,7 +120,7 @@ function Home() {
                 <span className="bg-[#F59E0B] text-black text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Admin</span>
                 <h2 className="font-bold text-lg">Portal do Professor</h2>
               </div>
-              <p className="text-white/60 text-sm">Gerencie seus alunos, crie contas e verifique o progresso.</p>
+              <p className="text-white/60 text-sm">Gerencie seus alunos e conteúdo.</p>
             </div>
             <button
               onClick={() => navigate('/admin')}

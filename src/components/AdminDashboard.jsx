@@ -15,41 +15,45 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true) 
   const [showCreateModal, setShowCreateModal] = useState(false) 
 
-  // Form
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [createLoading, setCreateLoading] = useState(false)
 
-  // --- 🔓 PORTA DESTRANCADA TEMPORARIAMENTE ---
-  // Removi o código que te chutava para fora (navigate('/'))
-  // Agora qualquer um que tiver o link entra (só para testarmos)
-  // ---------------------------------------------
+  // 🔒 LISTA VIP PARA SEGURANÇA DA ROTA
+  const ADMIN_EMAILS = [
+    "alexmg@gmail.com", 
+    "alexsbd85@gmail.com",
+    "alexalienmg@gmail.com",
+    "alexpotterbd@gmail.com"
+  ]
 
-  // Busca alunos
+  // Se não for Admin, chuta pra fora!
+  useEffect(() => {
+    if (user && !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      navigate('/') 
+    }
+  }, [user, navigate])
+
   const fetchStudents = async () => {
     setLoading(true)
     const db = getFirestore()
     try {
       const q = query(collection(db, "users"), orderBy("lastActivity", "desc"))
       const querySnapshot = await getDocs(q)
-      
-      const list = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setStudents(list)
+      setStudents(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     } catch (error) {
-      console.error("Erro ao buscar alunos:", error)
+      console.error("Erro:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  // Carrega lista ao entrar
   useEffect(() => {
-    fetchStudents()
-  }, [])
+    // Só carrega se for admin
+    if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      fetchStudents()
+    }
+  }, [user])
 
-  // Criar aluno
   const handleCreate = async (e) => {
     e.preventDefault()
     setCreateLoading(true)
@@ -74,7 +78,7 @@ export default function AdminDashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-[#1A1A1A]">Portal do Professor</h1>
-            <p className="text-[#6B7280]">Modo de Teste (Sem Trava)</p>
+            <p className="text-[#6B7280]">Gestão de Alunos</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -84,12 +88,13 @@ export default function AdminDashboard() {
           </button>
         </div>
 
+        {/* Tabela */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase">Aluno</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase">XP</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase">XP / Nível</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase">Último Acesso</th>
               </tr>
             </thead>
@@ -110,9 +115,11 @@ export default function AdminDashboard() {
               ))}
             </tbody>
           </table>
+          {students.length === 0 && !loading && <div className="p-8 text-center text-gray-500">Nenhum aluno.</div>}
         </div>
       </main>
 
+      {/* Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <motion.div 
@@ -122,29 +129,9 @@ export default function AdminDashboard() {
           >
             <h2 className="text-2xl font-bold text-[#1A1A1A] mb-6">Cadastrar Aluno</h2>
             <form onSubmit={handleCreate} className="space-y-4">
-              <input 
-                placeholder="Nome"
-                required
-                className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none"
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
-              <input 
-                placeholder="Email"
-                type="email"
-                required
-                className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none"
-                value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
-              />
-              <input 
-                placeholder="Senha"
-                type="text"
-                required
-                className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none"
-                value={formData.password}
-                onChange={e => setFormData({...formData, password: e.target.value})}
-              />
+              <input placeholder="Nome" required className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <input placeholder="Email" type="email" required className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <input placeholder="Senha" type="text" required className="w-full bg-[#F0F0F0] p-4 rounded-xl outline-none" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
                 <button type="submit" disabled={createLoading} className="flex-1 py-3 bg-[#1A1A1A] text-white font-bold rounded-xl hover:bg-[#333]">Criar</button>

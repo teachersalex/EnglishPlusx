@@ -8,6 +8,17 @@ export default function Header({ showBack, backTo }) {
   const { user, userData, logout } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
 
+  // 🔒 LISTA VIP: Seus emails que podem ver o botão
+  const ADMIN_EMAILS = [
+    "alexmg@gmail.com", 
+    "alexsbd85@gmail.com",
+    "alexalienmg@gmail.com",
+    "alexpotterbd@gmail.com"
+  ]
+
+  // Verifica se é Admin (seguro contra maiúsculas/minúsculas)
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())
+
   return (
     <>
       <header className="bg-[#1A1A1A] sticky top-0 z-50 border-b border-[#333]">
@@ -15,47 +26,61 @@ export default function Header({ showBack, backTo }) {
           {showBack ? (
             <button 
               onClick={() => navigate(backTo || '/')}
-              className="text-white hover:text-[#E50914] transition-colors font-medium"
+              className="text-white hover:text-[#E50914] transition-colors font-medium flex items-center gap-1"
             >
-              ← Voltar
+              <span>←</span> Voltar
             </button>
           ) : (
-             <div className="w-10"></div>
+            <div className="w-16" /> 
           )}
           
-          <div onClick={() => navigate('/')} className="cursor-pointer">
+          <div 
+            onClick={() => navigate('/')} 
+            className="cursor-pointer flex items-center select-none"
+          >
             <span className="font-bold text-white text-lg">Teacher Alex</span>
             <span className="font-bold text-[#E50914] text-lg ml-1">ENGLISH+</span>
           </div>
           
           {user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               
-              {/* BOTÃO FORÇADO - VAI APARECER PARA TODO MUNDO LOGADO */}
-              <button
-                onClick={() => navigate('/admin')}
-                className="bg-yellow-500 text-black px-3 py-1 rounded font-bold text-xs hover:bg-white"
-              >
-                ADMIN
-              </button>
-              {/* --------------------------------------------------- */}
+              {/* 👑 BOTÃO DO ADMIN (Só aparece pra você) */}
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="bg-[#F59E0B] text-black px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-1 hover:bg-white transition-colors shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                  title="Painel do Professor"
+                >
+                  <span>👑</span>
+                  <span className="hidden sm:inline">ADMIN</span>
+                </button>
+              )}
 
               <div className="flex flex-col items-end">
-                <span className="text-white text-sm">{userData?.name?.split(' ')[0]}</span>
-                <button onClick={logout} className="text-[#6B7280] text-xs hover:text-red-500">Sair</button>
+                <span className="text-white text-sm font-medium leading-none">
+                  {userData?.name?.split(' ')[0] || 'Aluno'}
+                </span>
+                <button 
+                  onClick={logout}
+                  className="text-[#6B7280] hover:text-[#E50914] transition-colors text-[10px] mt-0.5 uppercase tracking-wide"
+                >
+                  Sair
+                </button>
               </div>
             </div>
           ) : (
             <button 
               data-login
               onClick={() => setShowLogin(true)}
-              className="bg-[#E50914] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#B20710]"
+              className="bg-[#E50914] text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-[#B20710] transition-colors shadow-lg"
             >
-              Entrar
+              ENTRAR
             </button>
           )}
         </div>
       </header>
+
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </>
   )

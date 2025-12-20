@@ -1,19 +1,11 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
-  const { user: authUser } = useAuth() // Pega o usuário direto do Google (Login)
   
-  // Se não tiver dados do banco ainda, retorna nulo (padrão)
   if (!user) return null
-
-  // --- DEBUG FORCE (MOSTRA TUDO) ---
-  const googleEmail = authUser?.email || "Não detectado"
-  const firestoreEmail = user.email || "Não salvo no banco"
-  // --------------------------------
-
+  
   // Calcula nível
   const level = Math.floor(user.xp / 100) + 1
   const xpInLevel = user.xp % 100
@@ -30,7 +22,7 @@ export default function UserStats({ user, continueEpisode }) {
         <div className="flex justify-between items-start mb-4">
           <div>
             <h1 className="text-2xl font-bold text-[#1A1A1A]">Olá, {user.name}!</h1>
-            <p className="text-[#6B7280] text-sm">Nível {level}</p>
+            <p className="text-[#6B7280] text-sm">Continue sua jornada</p>
           </div>
           <div className="text-right">
             <p className="text-[#E50914] font-bold text-lg">{user.streak} dias</p>
@@ -39,44 +31,55 @@ export default function UserStats({ user, continueEpisode }) {
         </div>
 
         {/* Barra de XP */}
-        <div className="mb-4">
+        <div>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="font-bold text-[#1A1A1A]">Nível {level}</span>
+            <span className="text-[#6B7280]">{user.xp} XP</span>
+          </div>
           <div className="h-3 bg-[#F0F0F0] rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${xpProgress}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
               className="h-full bg-[#E50914] rounded-full"
             />
           </div>
         </div>
-
-        {/* ================================================== */}
-        {/* 🕵️ ÁREA DE DEBUG (VAI APARECER UMA CAIXA AMARELA) */}
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-900 p-3 mb-4 text-xs font-mono">
-          <p className="font-bold">DIAGNÓSTICO:</p>
-          <p>📧 Email Google (Auth): {googleEmail}</p>
-          <p>💾 Email Banco (User): {firestoreEmail}</p>
-        </div>
-        {/* ================================================== */}
-
-        {/* 🚨 BOTÃO SEM TRAVA (TEM QUE APARECER) 🚨 */}
-        <button
-          onClick={() => navigate('/admin')}
-          className="w-full bg-red-600 text-white py-3 px-4 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg flex items-center justify-center gap-2"
-        >
-          <span>🛠️</span>
-          <span>ENTRAR NO PAINEL (FORÇADO)</span>
-        </button>
-
       </motion.div>
 
       {/* Continue ouvindo */}
       {continueEpisode && (
-        <div 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
           onClick={() => navigate(continueEpisode.url)}
-          className="bg-[#1A1A1A] rounded-2xl p-4 shadow-lg cursor-pointer mt-4"
+          className="bg-[#1A1A1A] rounded-2xl p-4 shadow-lg cursor-pointer hover:bg-[#2A2A2A] transition-colors"
         >
-          <p className="text-white font-bold text-sm">Continuar: {continueEpisode.seriesTitle}</p>
-        </div>
+          <p className="text-[#6B7280] text-xs uppercase tracking-wide mb-3">Continue ouvindo</p>
+          <div className="flex gap-4">
+            <img 
+              src={continueEpisode.coverImage}
+              alt={continueEpisode.seriesTitle}
+              className="w-20 h-20 object-cover rounded-lg"
+            />
+            <div className="flex-1">
+              <h3 className="text-white font-bold">{continueEpisode.seriesTitle}</h3>
+              <p className="text-[#6B7280] text-sm">{continueEpisode.episodeTitle}</p>
+              <div className="mt-2">
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#E50914] rounded-full"
+                    style={{ width: `${continueEpisode.progress}%` }}
+                  />
+                </div>
+                <p className="text-[#6B7280] text-xs mt-1">
+                  {continueEpisode.questionsAnswered}/{continueEpisode.totalQuestions} perguntas
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
     </div>
   )

@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom'
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
   
+  // CONFIGURAÇÃO DO EMAIL ADMIN
+  const ADMIN_EMAIL = "alexmg@gmail.com"
+
   // Se não tiver dados ainda, não mostra nada
   if (!user) return null
   
@@ -32,7 +35,7 @@ export default function UserStats({ user, continueEpisode }) {
         </div>
 
         {/* Barra de XP */}
-        <div>
+        <div className="mb-4">
           <div className="flex justify-between text-sm mb-1">
             <span className="font-bold text-[#1A1A1A]">Nível {level}</span>
             <span className="text-[#6B7280]">{user.xp} XP</span>
@@ -46,6 +49,25 @@ export default function UserStats({ user, continueEpisode }) {
             />
           </div>
         </div>
+
+        {/* --- BOTÃO DO PROFESSOR (Inserido aqui dentro) --- */}
+        {user.email === ADMIN_EMAIL && (
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/admin')}
+            className="w-full mt-4 bg-[#1A1A1A] text-white py-3 px-4 rounded-xl font-bold border-l-4 border-[#F59E0B] flex items-center justify-between hover:bg-black transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span>👑</span>
+              <span className="text-sm">Painel do Professor</span>
+            </div>
+            <svg className="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </motion.button>
+        )}
+        {/* ------------------------------------------------ */}
+
       </motion.div>
 
       {/* Continue ouvindo - só aparece se tiver dados reais */}

@@ -49,20 +49,10 @@ function Home() {
   const { user, userData, getLastProgress } = useAuth()
   const [continueEpisode, setContinueEpisode] = useState(null)
 
-  // 🔒 CONFIGURAÇÃO DO ADMIN
+  // 🔒 CONFIGURAÇÃO: SEU EMAIL EXATO
   const ADMIN_EMAIL = "alexmg@gmail.com"
 
-  // --- 🕵️ DEBUG NO CONSOLE ---
-  console.log("--------------------------------------------------")
-  console.log("🕵️ DEBUG HOME:")
-  console.log("1. Objeto User completo:", user)
-  console.log("2. Email que veio do Google:", user?.email)
-  console.log("3. Email que o código exige:", ADMIN_EMAIL)
-  console.log("4. Eles são IDÊNTICOS?", user?.email === ADMIN_EMAIL)
-  console.log("--------------------------------------------------")
-  // ---------------------------
-
-  // Carrega último progresso ao montar
+  // Carrega último progresso
   useEffect(() => {
     async function loadContinue() {
       if (!user) return
@@ -102,33 +92,34 @@ function Home() {
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         
-        {/* === ÁREA EXCLUSIVA DO PROFESSOR === */}
-        {user && user.email === ADMIN_EMAIL && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#1A1A1A] text-white p-5 rounded-2xl mb-8 flex justify-between items-center shadow-xl border-l-4 border-[#F59E0B]"
-          >
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="bg-[#F59E0B] text-black text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Admin</span>
-                <h2 className="font-bold text-lg">Portal do Professor</h2>
-              </div>
-              <p className="text-white/60 text-sm">Gerencie seus alunos e conteúdo.</p>
-            </div>
-            <button
-              onClick={() => navigate('/admin')}
-              className="bg-white text-[#1A1A1A] px-6 py-3 rounded-xl font-bold hover:bg-[#F0F0F0] transition-colors shadow-lg flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-              Acessar Painel
-            </button>
-          </motion.div>
-        )}
-        {/* =================================== */}
+        {/* BLOCO DO USUÁRIO LOGADO */}
+        {user && (
+          <div className="mb-8">
+            {/* 1. SEU PAINEL DE ESTATÍSTICAS (O "Olá Alex...") */}
+            <UserStats user={userData} continueEpisode={continueEpisode} />
 
-        {user && <UserStats user={userData} continueEpisode={continueEpisode} />}
+            {/* 2. BOTÃO ADMIN (GRUDADO LOGO ABAIXO) */}
+            {/* Verifica se o email é igual ao definido */}
+            {user.email === ADMIN_EMAIL ? (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => navigate('/admin')}
+                className="mt-4 w-full bg-[#1A1A1A] text-white py-4 rounded-xl font-bold border-2 border-[#F59E0B] shadow-xl flex justify-center items-center gap-3 hover:bg-black transition-all"
+              >
+                <span>👑</span>
+                <span>ACESSAR DASHBOARD DO PROFESSOR</span>
+              </motion.button>
+            ) : (
+              // DEBUG: Se você estiver logado mas o email não bater, isso vai aparecer pra te avisar
+              <div className="mt-2 text-xs text-center text-gray-400">
+                Logado como: {user.email} (Não é Admin)
+              </div>
+            )}
+          </div>
+        )}
         
+        {/* BLOCO DE QUEM NÃO TÁ LOGADO */}
         {!user && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

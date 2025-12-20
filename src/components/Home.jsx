@@ -49,16 +49,14 @@ function Home() {
   const { user, userData, getLastProgress } = useAuth()
   const [continueEpisode, setContinueEpisode] = useState(null)
 
-  // 🔒 CONFIGURAÇÃO: SEU EMAIL EXATO
-  const ADMIN_EMAIL = "alexmg@gmail.com"
-
-  // Carrega último progresso
+  // Carrega último progresso ao montar
   useEffect(() => {
     async function loadContinue() {
       if (!user) return
       
       const lastProgress = await getLastProgress()
       
+      // Só mostra se não estiver completo
       if (lastProgress && !lastProgress.completed) {
         const series = seriesData[lastProgress.seriesId]
         const totalQuestions = series?.episodes.find(
@@ -92,34 +90,10 @@ function Home() {
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         
-        {/* BLOCO DO USUÁRIO LOGADO */}
-        {user && (
-          <div className="mb-8">
-            {/* 1. SEU PAINEL DE ESTATÍSTICAS (O "Olá Alex...") */}
-            <UserStats user={userData} continueEpisode={continueEpisode} />
-
-            {/* 2. BOTÃO ADMIN (GRUDADO LOGO ABAIXO) */}
-            {/* Verifica se o email é igual ao definido */}
-            {user.email === ADMIN_EMAIL ? (
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => navigate('/admin')}
-                className="mt-4 w-full bg-[#1A1A1A] text-white py-4 rounded-xl font-bold border-2 border-[#F59E0B] shadow-xl flex justify-center items-center gap-3 hover:bg-black transition-all"
-              >
-                <span>👑</span>
-                <span>ACESSAR DASHBOARD DO PROFESSOR</span>
-              </motion.button>
-            ) : (
-              // DEBUG: Se você estiver logado mas o email não bater, isso vai aparecer pra te avisar
-              <div className="mt-2 text-xs text-center text-gray-400">
-                Logado como: {user.email} (Não é Admin)
-              </div>
-            )}
-          </div>
-        )}
+        {/* Se estiver logado, mostra stats + botão admin (dentro do componente) */}
+        {user && <UserStats user={userData} continueEpisode={continueEpisode} />}
         
-        {/* BLOCO DE QUEM NÃO TÁ LOGADO */}
+        {/* Se NÃO estiver logado, mostra boas vindas */}
         {!user && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -139,6 +113,7 @@ function Home() {
           </motion.div>
         )}
 
+        {/* Listas de Séries */}
         <SeriesRow title="Starter — Pré-A1" series={seriesByLevel.starter} onSeriesClick={handleSeriesClick} />
         <SeriesRow title="Nível A1 — Iniciante" series={seriesByLevel.a1} onSeriesClick={handleSeriesClick} />
         <SeriesRow title="Nível A2 — Básico" series={seriesByLevel.a2} onSeriesClick={handleSeriesClick} />

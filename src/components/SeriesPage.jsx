@@ -51,6 +51,17 @@ function SeriesPage() {
   const completedCount = Object.keys(completedEpisodes).length
   const totalEpisodes = series.episodes.length
 
+  // Determina o estado visual do episódio
+  // - loading + user logado = neutro (cinza)
+  // - carregou + completo = verde
+  // - carregou + não completo = vermelho
+  // - sem user = vermelho (não logado)
+  const getEpisodeState = (epId) => {
+    if (user && loading) return 'loading'  // Estado neutro enquanto carrega
+    if (completedEpisodes[epId]) return 'completed'
+    return 'pending'
+  }
+
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
       <Header showBack backTo="/" />
@@ -96,7 +107,9 @@ function SeriesPage() {
         <h2 className="text-[#1A1A1A] text-xl font-bold mb-4">Episódios</h2>
         <div className="space-y-3">
           {series.episodes.map((ep, index) => {
-            const isCompleted = completedEpisodes[ep.id]
+            const state = getEpisodeState(ep.id)
+            const isCompleted = state === 'completed'
+            const isLoading = state === 'loading'
             
             return (
               <motion.div
@@ -110,12 +123,18 @@ function SeriesPage() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                    isCompleted 
-                      ? 'bg-[#22C55E] text-white' 
-                      : 'bg-[#E50914] text-white'
+                  {/* Badge do episódio */}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
+                    isLoading
+                      ? 'bg-[#D1D5DB] text-white'  // Cinza neutro enquanto carrega
+                      : isCompleted 
+                        ? 'bg-[#22C55E] text-white' 
+                        : 'bg-[#E50914] text-white'
                   }`}>
-                    {isCompleted ? (
+                    {isLoading ? (
+                      // Número enquanto carrega
+                      ep.id
+                    ) : isCompleted ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
@@ -123,6 +142,7 @@ function SeriesPage() {
                       ep.id
                     )}
                   </div>
+                  
                   <div>
                     <h3 className="font-bold text-[#1A1A1A]">{ep.title}</h3>
                     <p className="text-[#6B7280] text-sm">
@@ -132,7 +152,11 @@ function SeriesPage() {
                   </div>
                 </div>
                 
-                {isCompleted ? (
+                {/* Ícone da direita */}
+                {isLoading ? (
+                  // Nada ou sutil enquanto carrega
+                  <div className="w-6 h-6" />
+                ) : isCompleted ? (
                   <span className="text-[#6B7280] text-sm">Rever</span>
                 ) : (
                   <svg className="w-6 h-6 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24">

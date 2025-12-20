@@ -2,7 +2,8 @@ import { initializeApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 
-const firebaseConfig = {
+// ADICIONEI O 'export' AQUI EMBAIXO 👇
+export const firebaseConfig = {
   apiKey: "AIzaSyCTvdoA1xxu4ZCwB01fX3oQFXyrqilBzik",
   authDomain: "englishplus-7506c.firebaseapp.com",
   projectId: "englishplus-7506c",

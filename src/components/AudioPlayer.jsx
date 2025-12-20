@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- 1. CONFIGURAÇÕES E UTILITÁRIOS (Versão Nuclear) ---
+// --- CONFIGURAÇÕES E UTILITÁRIOS ---
 
 const CONTRACTIONS = {
   "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
@@ -16,26 +16,42 @@ const CONTRACTIONS = {
   "cant": "can not", "couldnt": "could not", "thats": "that is", "whats": "what is", "lets": "let us"
 }
 
-const NUMBER_WORDS = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten', '11': 'eleven', '12': 'twelve' }
-const HEADER_TRIGGERS = new Set(['episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'])
+const NUMBER_WORDS = {
+  '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
+  '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
+  '10': 'ten', '11': 'eleven', '12': 'twelve'
+}
+
 const NUMBER_WORD_SET = new Set(Object.values(NUMBER_WORDS))
+
+const HEADER_TRIGGERS = new Set([
+  'episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'
+])
 
 function normalizeAndTokenize(text) {
   if (!text) return []
-  let clean = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[’‘‛`´]/g, "'").replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match).replace(/[^a-z0-9'\s]/g, ' ')
+  let clean = text.toLowerCase()
+  clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+  clean = clean.replace(/[’‘‛`´]/g, "'")
+  clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
+  clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   let tokens = clean.split(/\s+/).filter(w => w)
   let expandedTokens = []
   tokens.forEach(token => {
     const tokenClean = token.replace(/^'+|'+$/g, '')
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
-    if (CONTRACTIONS[tokenClean]) expandedTokens.push(...CONTRACTIONS[tokenClean].split(' '))
-    else if (CONTRACTIONS[tokenNoApostrophe]) expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))
-    else expandedTokens.push(tokenNoApostrophe)
+    if (CONTRACTIONS[tokenClean]) {
+      expandedTokens.push(...CONTRACTIONS[tokenClean].split(' '))
+    } else if (CONTRACTIONS[tokenNoApostrophe]) {
+      expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))
+    } else {
+      expandedTokens.push(tokenNoApostrophe)
+    }
   })
   return expandedTokens
 }
 
-// --- 2. ALGORITMO NUCLEAR (WAGNER-FISCHER) ---
+// --- ALGORITMO NUCLEAR (WAGNER-FISCHER) ---
 // Substitui o calculateDiff antigo que "desistia" fácil
 function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
@@ -43,25 +59,38 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const titleTokens = normalizeAndTokenize(episodeTitle)
   let startUserIndex = 0
 
-  // Pula cabeçalho
+  // 1. Lógica de Cabeçalho
   while(startUserIndex < userTokens.length) {
     const word = userTokens[startUserIndex]
     if (HEADER_TRIGGERS.has(word)) {
        startUserIndex++
-       if (startUserIndex < userTokens.length && (NUMBER_WORD_SET.has(userTokens[startUserIndex]) || /^\d+$/.test(userTokens[startUserIndex]))) startUserIndex++
-    } else break
+       if (startUserIndex < userTokens.length) {
+         const nextWord = userTokens[startUserIndex]
+         if (NUMBER_WORD_SET.has(nextWord) || /^\d+$/.test(nextWord)) {
+            startUserIndex++
+         }
+       }
+    } else {
+      break
+    }
   }
-  
-  // Pula título
+
+  // 2. Lógica de Título
   if (titleTokens.length > 0 && startUserIndex < userTokens.length) {
     let matchCount = 0
     for (let i = 0; i < titleTokens.length; i++) {
-      if (startUserIndex + i < userTokens.length && userTokens[startUserIndex + i] === titleTokens[i]) matchCount++
-      else break
+      if (startUserIndex + i < userTokens.length && userTokens[startUserIndex + i] === titleTokens[i]) {
+        matchCount++
+      } else {
+        break
+      }
     }
-    if (matchCount >= Math.ceil(titleTokens.length * 0.6)) {
+    const threshold = Math.ceil(titleTokens.length * 0.6)
+    if (matchCount >= threshold) {
        const origStartsWithTitle = titleTokens.slice(0, matchCount).every((t, i) => origTokens[i] === t)
-       if (!origStartsWithTitle) startUserIndex += matchCount
+       if (!origStartsWithTitle) {
+         startUserIndex += matchCount
+       }
     }
   }
 
@@ -69,7 +98,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const N = origTokens.length
   const M = actualUserTokens.length
   
-  // Matriz de custo (Programação Dinâmica)
+  // Matriz de distâncias (A Mágica Matemática)
   const dp = Array(N + 1).fill(null).map(() => Array(M + 1).fill(0))
 
   for (let i = 0; i <= N; i++) dp[i][0] = i
@@ -77,37 +106,62 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
 
   for (let i = 1; i <= N; i++) {
     for (let j = 1; j <= M; j++) {
-      if (origTokens[i - 1] === actualUserTokens[j - 1]) dp[i][j] = dp[i - 1][j - 1]
-      else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+      if (origTokens[i - 1] === actualUserTokens[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1]
+      } else {
+        dp[i][j] = 1 + Math.min(
+          dp[i - 1][j],    // Deletar
+          dp[i][j - 1],    // Inserir
+          dp[i - 1][j - 1] // Substituir
+        )
+      }
     }
   }
 
-  // Reconstrói o caminho (Backtracking)
-  let i = N, j = M
+  // Backtracking para gerar o diff visual
+  let i = N
+  let j = M
   const diffReverse = []
-  let correctCount = 0, extraCount = 0, missingCount = 0, wrongCount = 0
+  let correctCount = 0
+  let extraCount = 0
+  let missingCount = 0
+  let wrongCount = 0
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && origTokens[i - 1] === actualUserTokens[j - 1]) {
-      diffReverse.push({ type: 'correct', word: origTokens[i - 1] }); correctCount++; i--; j--;
+      diffReverse.push({ type: 'correct', word: origTokens[i - 1] })
+      correctCount++
+      i--
+      j--
     } else if (j > 0 && (i === 0 || dp[i][j] === dp[i][j - 1] + 1)) {
-      diffReverse.push({ type: 'extra', word: actualUserTokens[j - 1] }); extraCount++; j--;
+      diffReverse.push({ type: 'extra', word: actualUserTokens[j - 1] })
+      extraCount++
+      j--
     } else if (i > 0 && (j === 0 || dp[i][j] === dp[i - 1][j] + 1)) {
-      diffReverse.push({ type: 'missing', word: origTokens[i - 1] }); missingCount++; i--;
+      diffReverse.push({ type: 'missing', word: origTokens[i - 1] })
+      missingCount++
+      i--
     } else {
-      diffReverse.push({ type: 'wrong', word: actualUserTokens[j - 1], expected: origTokens[i - 1] }); wrongCount++; i--; j--;
+      diffReverse.push({ type: 'wrong', word: actualUserTokens[j - 1], expected: origTokens[i - 1] })
+      wrongCount++
+      i--
+      j--
     }
   }
 
-  // Adiciona de volta o cabeçalho ignorado apenas visualmente
-  const diffResult = [...userTokens.slice(0, startUserIndex).map(w => ({ type: 'title', word: w })), ...diffReverse.reverse()]
+  const diffResult = diffReverse.reverse()
+  
+  // Reconecta os tokens de cabeçalho ignorados visualmente
+  const headerDiffs = userTokens.slice(0, startUserIndex).map(w => ({ type: 'title', word: w }))
+  const finalDiff = [...headerDiffs, ...diffResult]
+
   const totalRelevant = origTokens.length + extraCount
-  const score = totalRelevant > 0 ? Math.round((correctCount / totalRelevant) * 100) : 0
-  return { diffResult, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
+  const rawScore = totalRelevant > 0 ? (correctCount / totalRelevant) * 100 : 0
+  const score = Math.min(100, Math.round(rawScore))
+  
+  return { diffResult: finalDiff, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
 }
 
-// --- 3. SEU COMPONENTE ORIGINAL (INTERFACE) ---
-// Mantido exatamente como você gosta, recebendo showQuiz e setShowQuiz
 export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz }) {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -136,10 +190,12 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     const audio = audioRef.current
     if (!audio) return
     const updateTime = () => setCurrentTime(audio.currentTime)
+    
     const handleEnded = () => {
       setIsPlaying(false)
       if (onTimeUpdate) onTimeUpdate(audio.currentTime)
     }
+
     audio.addEventListener('timeupdate', updateTime)
     audio.addEventListener('ended', handleEnded)
     return () => {
@@ -159,12 +215,15 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   }, [onTimeUpdate])
 
   const handlePause = () => {
-    if (onTimeUpdate && audioRef.current) onTimeUpdate(audioRef.current.currentTime)
+    if (onTimeUpdate && audioRef.current) {
+      onTimeUpdate(audioRef.current.currentTime)
+    }
   }
 
   const togglePlay = async () => {
     const audio = audioRef.current
     if (!audio) return
+
     try {
       if (isPlaying) {
         audio.pause()
@@ -197,7 +256,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     if(audioRef.current) audioRef.current.currentTime = percent * duration
   }
 
-  // USA O NOVO ALGORITMO AQUI
   const handleCheck = () => {
     if (!userText.trim() || !transcript) return
     const result = calculateDiff(transcript, userText, episodeTitle)
@@ -285,6 +343,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       </div>
 
       {/* --- BOTÕES DE AÇÃO (PILLS) --- */}
+      {/* Aqui a lógica é: Ditado abre dentro do player, Quiz toggle uma prop externa */}
       <div className="border-t border-white/10 pt-4 flex flex-wrap justify-center gap-3">
         
         {/* Botão 1: Praticar Escrita */}
@@ -307,7 +366,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         {/* Botão 2: Responder Quiz */}
         <motion.button
           whileTap={{ scale: 0.98 }}
-          // Chama a função passada pelo EpisodePage
           onClick={() => {
              const newState = !showQuiz
              setShowQuiz(newState)
@@ -320,8 +378,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         </motion.button>
       </div>
 
-      {/* ÁREA DE CONTEÚDO (DITADO) */}
-      {/* O Quiz não é renderizado aqui, ele é renderizado no EpisodePage controlado pelo showQuiz acima */}
+      {/* ÁREA DE CONTEÚDO (Apenas Ditado, o Quiz é renderizado pelo pai) */}
       {transcript && (
         <AnimatePresence>
           {showDictation && (

@@ -14,27 +14,45 @@ function SeriesPage() {
   
   const series = seriesData[id]
 
-  // Carrega progresso de todos os episódios
+  // CORREÇÃO v9: Carregamento Paralelo (Promise.all)
+  // Remove o "waterfall" (fila indiana) que causava o delay de 150ms
   useEffect(() => {
     async function loadAllProgress() {
+      // Se não tem user ou a série não existe, não há o que buscar
       if (!user || !series) {
         setLoading(false)
         return
       }
 
-      const completed = {}
-      for (const ep of series.episodes) {
-        const progress = await getProgress(id, ep.id.toString())
-        if (progress?.completed) {
-          completed[ep.id] = true
-        }
+      try {
+        // Dispara todas as requisições ao mesmo tempo
+        const checks = series.episodes.map(ep => 
+          getProgress(id, ep.id.toString())
+        )
+
+        // Espera todas voltarem juntas
+        const results = await Promise.all(checks)
+
+        // Monta o objeto de completados
+        const completed = {}
+        results.forEach((progress, index) => {
+          if (progress?.completed) {
+            // Usa o índice para pegar o ID correto do array original
+            const epId = series.episodes[index].id
+            completed[epId] = true
+          }
+        })
+
+        setCompletedEpisodes(completed)
+      } catch (error) {
+        console.error("Erro ao carregar progresso:", error)
+      } finally {
+        setLoading(false)
       }
-      setCompletedEpisodes(completed)
-      setLoading(false)
     }
 
     loadAllProgress()
-  }, [user, id, series])
+  }, [user, id, series, getProgress])
 
   if (!series) {
     return (
@@ -52,12 +70,8 @@ function SeriesPage() {
   const totalEpisodes = series.episodes.length
 
   // Determina o estado visual do episódio
-  // - loading + user logado = neutro (cinza)
-  // - carregou + completo = verde
-  // - carregou + não completo = vermelho
-  // - sem user = vermelho (não logado)
   const getEpisodeState = (epId) => {
-    if (user && loading) return 'loading'  // Estado neutro enquanto carrega
+    if (user && loading) return 'loading'
     if (completedEpisodes[epId]) return 'completed'
     return 'pending'
   }
@@ -126,14 +140,13 @@ function SeriesPage() {
                   {/* Badge do episódio */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
                     isLoading
-                      ? 'bg-[#D1D5DB] text-white'  // Cinza neutro enquanto carrega
+                      ? 'bg-[#D1D5DB] text-white'  // Mantém neutro no loading
                       : isCompleted 
                         ? 'bg-[#22C55E] text-white' 
                         : 'bg-[#E50914] text-white'
                   }`}>
                     {isLoading ? (
-                      // Número enquanto carrega
-                      ep.id
+                      ep.id // Mostra número enquanto carrega (comportamento original)
                     ) : isCompleted ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -154,7 +167,6 @@ function SeriesPage() {
                 
                 {/* Ícone da direita */}
                 {isLoading ? (
-                  // Nada ou sutil enquanto carrega
                   <div className="w-6 h-6" />
                 ) : isCompleted ? (
                   <span className="text-[#6B7280] text-sm">Rever</span>

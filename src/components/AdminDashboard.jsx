@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [createLoading, setCreateLoading] = useState(false)
 
-  // 🔒 LISTA VIP PARA SEGURANÇA DA ROTA
+  // 🔒 LISTA VIP
   const ADMIN_EMAILS = [
     "alexmg@gmail.com", 
     "alexsbd85@gmail.com",
@@ -48,7 +48,6 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    // Só carrega se for admin
     if (user && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
       fetchStudents()
     }
@@ -69,6 +68,24 @@ export default function AdminDashboard() {
       setCreateLoading(false)
     }
   }
+
+  // --- 📅 FUNÇÃO MÁGICA PARA CORRIGIR AS DATAS ---
+  const formatDate = (dateField) => {
+    if (!dateField) return 'Nunca'
+    
+    // Se for Timestamp do Firebase (tem a função toDate)
+    if (dateField?.toDate) {
+      return dateField.toDate().toLocaleString('pt-BR')
+    }
+    
+    // Se for Texto (formato antigo/Google)
+    if (typeof dateField === 'string') {
+      return new Date(dateField).toLocaleString('pt-BR')
+    }
+    
+    return 'Data Inválida'
+  }
+  // -----------------------------------------------
 
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
@@ -109,7 +126,8 @@ export default function AdminDashboard() {
                     <span className="text-[#E50914] font-bold">{student.xp || 0} XP</span>
                   </td>
                   <td className="p-4 text-sm text-gray-600">
-                    {student.lastActivity?.toDate ? student.lastActivity.toDate().toLocaleString() : 'Nunca'}
+                    {/* Usamos a função nova aqui 👇 */}
+                    {formatDate(student.lastActivity)}
                   </td>
                 </tr>
               ))}

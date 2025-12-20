@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- CONFIGURAÇÕES E UTILITÁRIOS ---
+// --- 1. CONFIGURAÇÕES E UTILITÁRIOS (Versão Nuclear) ---
 
 const CONTRACTIONS = {
   "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
@@ -16,17 +16,9 @@ const CONTRACTIONS = {
   "cant": "can not", "couldnt": "could not", "thats": "that is", "whats": "what is", "lets": "let us"
 }
 
-const NUMBER_WORDS = {
-  '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
-  '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
-  '10': 'ten', '11': 'eleven', '12': 'twelve'
-}
-
+const NUMBER_WORDS = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten', '11': 'eleven', '12': 'twelve' }
+const HEADER_TRIGGERS = new Set(['episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'])
 const NUMBER_WORD_SET = new Set(Object.values(NUMBER_WORDS))
-
-const HEADER_TRIGGERS = new Set([
-  'episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'
-])
 
 function normalizeAndTokenize(text) {
   if (!text) return []
@@ -43,15 +35,15 @@ function normalizeAndTokenize(text) {
   return expandedTokens
 }
 
-// --- ALGORITMO NUCLEAR (WAGNER-FISCHER) ---
-// Substituindo o antigo que quebrava por este matemático
+// --- 2. ALGORITMO NUCLEAR (WAGNER-FISCHER) ---
+// Substitui o calculateDiff antigo que "desistia" fácil
 function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
   const userTokens = normalizeAndTokenize(userText)
   const titleTokens = normalizeAndTokenize(episodeTitle)
   let startUserIndex = 0
 
-  // 1. Lógica de Cabeçalho
+  // Pula cabeçalho
   while(startUserIndex < userTokens.length) {
     const word = userTokens[startUserIndex]
     if (HEADER_TRIGGERS.has(word)) {
@@ -59,8 +51,8 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
        if (startUserIndex < userTokens.length && (NUMBER_WORD_SET.has(userTokens[startUserIndex]) || /^\d+$/.test(userTokens[startUserIndex]))) startUserIndex++
     } else break
   }
-
-  // 2. Lógica de Título
+  
+  // Pula título
   if (titleTokens.length > 0 && startUserIndex < userTokens.length) {
     let matchCount = 0
     for (let i = 0; i < titleTokens.length; i++) {
@@ -77,7 +69,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const N = origTokens.length
   const M = actualUserTokens.length
   
-  // Matriz de distâncias (A Mágica)
+  // Matriz de custo (Programação Dinâmica)
   const dp = Array(N + 1).fill(null).map(() => Array(M + 1).fill(0))
 
   for (let i = 0; i <= N; i++) dp[i][0] = i
@@ -90,7 +82,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
   }
 
-  // Backtracking
+  // Reconstrói o caminho (Backtracking)
   let i = N, j = M
   const diffReverse = []
   let correctCount = 0, extraCount = 0, missingCount = 0, wrongCount = 0
@@ -107,14 +99,16 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
     }
   }
 
+  // Adiciona de volta o cabeçalho ignorado apenas visualmente
   const diffResult = [...userTokens.slice(0, startUserIndex).map(w => ({ type: 'title', word: w })), ...diffReverse.reverse()]
   const totalRelevant = origTokens.length + extraCount
   const score = totalRelevant > 0 ? Math.round((correctCount / totalRelevant) * 100) : 0
   return { diffResult, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
 }
 
-// ADICIONEI quizData NAS PROPS AQUI EMBAIXO PARA O QUIZ FUNCIONAR
-export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz, quizData }) {
+// --- 3. SEU COMPONENTE ORIGINAL (INTERFACE) ---
+// Mantido exatamente como você gosta, recebendo showQuiz e setShowQuiz
+export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz }) {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -203,6 +197,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     if(audioRef.current) audioRef.current.currentTime = percent * duration
   }
 
+  // USA O NOVO ALGORITMO AQUI
   const handleCheck = () => {
     if (!userText.trim() || !transcript) return
     const result = calculateDiff(transcript, userText, episodeTitle)
@@ -289,7 +284,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      {/* --- ÁREA DOS BOTÕES DE AÇÃO (PILLS) --- */}
+      {/* --- BOTÕES DE AÇÃO (PILLS) --- */}
       <div className="border-t border-white/10 pt-4 flex flex-wrap justify-center gap-3">
         
         {/* Botão 1: Praticar Escrita */}
@@ -312,6 +307,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         {/* Botão 2: Responder Quiz */}
         <motion.button
           whileTap={{ scale: 0.98 }}
+          // Chama a função passada pelo EpisodePage
           onClick={() => {
              const newState = !showQuiz
              setShowQuiz(newState)
@@ -320,11 +316,12 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
           className={`w-fit px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 border ${showQuiz ? 'bg-[#E50914] text-white border-[#E50914]' : 'bg-[#E50914]/10 text-[#E50914] border-[#E50914]/20 hover:bg-[#E50914]/20'} shine-effect`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          {showQuiz ? 'Fechar Quiz' : 'Responder Quiz'}
+          {showQuiz ? 'Esconder Perguntas' : 'Responder Quiz'}
         </motion.button>
       </div>
 
       {/* ÁREA DE CONTEÚDO (DITADO) */}
+      {/* O Quiz não é renderizado aqui, ele é renderizado no EpisodePage controlado pelo showQuiz acima */}
       {transcript && (
         <AnimatePresence>
           {showDictation && (
@@ -387,77 +384,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
           )}
         </AnimatePresence>
       )}
-
-      {/* ÁREA DE CONTEÚDO (QUIZ) */}
-      <AnimatePresence>
-        {showQuiz && (
-            <motion.div 
-              key="quiz"
-              initial={{ opacity: 0, height: 0 }} 
-              animate={{ opacity: 1, height: 'auto' }} 
-              exit={{ opacity: 0, height: 0 }} 
-              className="mt-4 text-left bg-white/5 rounded-xl overflow-hidden border border-white/5"
-            >
-               {quizData ? (
-                 <div className="p-4 space-y-4">
-                   {/* Header do Quiz */}
-                   <div className="flex justify-between items-center mb-2">
-                     <span className="text-white/40 text-xs font-bold uppercase tracking-wider">Pergunta {quizData.currentQuestionIndex + 1} / {quizData.totalQuestions}</span>
-                     <div className="flex gap-1">
-                        {Array.from({length: quizData.totalQuestions}).map((_, i) => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i <= quizData.currentQuestionIndex ? 'bg-[#E50914]' : 'bg-white/10'}`} />
-                        ))}
-                     </div>
-                   </div>
-
-                   {/* Pergunta */}
-                   <h3 className="text-xl font-bold text-white mb-6 leading-relaxed">{quizData.currentQuestion.question}</h3>
-
-                   {/* Opções */}
-                   <div className="space-y-3">
-                      {quizData.currentQuestion.options.map((option, index) => {
-                        const isSelected = quizData.selectedAnswer === index;
-                        const showResult = quizData.selectedAnswer !== null;
-                        const isCorrect = index === quizData.currentQuestion.correctAnswer;
-                        
-                        // Estilo Dinâmico (igual ao que estava no EpisodePage)
-                        let style = "bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:border-white/30";
-                        if (showResult) {
-                          if (isSelected && quizData.lastAnswerCorrect) {
-                             style = "bg-green-500/20 border-green-500 text-green-100 ring-1 ring-green-500/50";
-                          } else if (isSelected && !quizData.lastAnswerCorrect) {
-                             style = "bg-red-500/20 border-red-500 text-red-100 ring-1 ring-red-500/50";
-                          } else if (isCorrect && !quizData.lastAnswerCorrect) {
-                             style = "bg-white/5 border-green-500/50 text-green-100 opacity-60"; // Mostra a correta se errou
-                          } else {
-                             style = "opacity-30 pointer-events-none"; // Apaga as irrelevantes
-                          }
-                        }
-                        
-                        return (
-                          <button
-                            key={index}
-                            disabled={showResult}
-                            onClick={() => quizData.handleAnswer(index)}
-                            className={`w-full p-4 rounded-xl text-left transition-all duration-200 flex justify-between items-center ${style}`}
-                          >
-                            <span>{option}</span>
-                            {showResult && isSelected && (
-                               <span>{quizData.lastAnswerCorrect ? '✅' : '❌'}</span>
-                            )}
-                          </button>
-                        )
-                      })}
-                   </div>
-                 </div>
-               ) : (
-                 <div className="flex flex-col items-center justify-center h-40 text-white/50">
-                    <p>Carregando quiz...</p>
-                 </div>
-               )}
-            </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

@@ -1,4 +1,8 @@
 export const seriesStarter = {
+  // ============================================
+  // SÉRIE 2 - STARTER (DAILY LIFE)
+  // The First Day - 3 episódios
+  // ============================================
   2: {
     id: 2,
     title: "The First Day",
@@ -115,6 +119,11 @@ I am happy now.`,
       }
     ]
   },
+
+  // ============================================
+  // SÉRIE 3 - STARTER (SUSPENSE)
+  // The Mystery Box - 3 episódios
+  // ============================================
   3: {
     id: 3,
     title: "The Mystery Box",
@@ -234,7 +243,11 @@ It is a perfect gift.`,
       }
     ]
   },
-  // SÉRIE 6 - STARTER (DRAMA)
+
+  // ============================================
+  // SÉRIE 7 - STARTER (DRAMA/ROMANCE)
+  // The Photograph - 4 episódios
+  // ============================================
   7: {
     id: 7,
     title: "The Photograph",
@@ -391,5 +404,3 @@ She is happy.`,
     ]
   },
 }
-
-

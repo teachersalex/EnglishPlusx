@@ -1,16 +1,30 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext' // <--- Importamos a fonte segura
 
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
+  const { user: authUser } = useAuth() // <--- Pegamos o usuário real do Login (Google)
   
-  // CONFIGURAÇÃO DO EMAIL ADMIN
-  const ADMIN_EMAIL = "alexmg@gmail.com"
-
-  // Se não tiver dados ainda, não mostra nada
   if (!user) return null
+
+  // --- CONFIGURAÇÃO DE SEGURANÇA BLINDADA ---
+  const ADMIN_EMAILS = [
+    "alexmg@gmail.com",
+    "alexsbd85@gmail.com",
+    "alexalienmg@gmail.com",
+    "alexpotterbd@gmail.com"
+  ]
+
+  // 1. Pega o email da fonte segura (Auth) e não do banco de dados
+  // 2. Converte para minúsculas para não ter erro de digitação
+  const safeEmail = authUser?.email ? authUser.email.toLowerCase() : ''
   
-  // Calcula nível baseado no XP (100 XP por nível)
+  // 3. Verifica se está na lista
+  const isAdmin = ADMIN_EMAILS.includes(safeEmail)
+  // ------------------------------------------
+  
+  // Calcula nível
   const level = Math.floor(user.xp / 100) + 1
   const xpInLevel = user.xp % 100
   const xpProgress = (xpInLevel / 100) * 100
@@ -26,7 +40,11 @@ export default function UserStats({ user, continueEpisode }) {
         <div className="flex justify-between items-start mb-4">
           <div>
             <h1 className="text-2xl font-bold text-[#1A1A1A]">Olá, {user.name}!</h1>
-            <p className="text-[#6B7280] text-sm">Continue sua jornada</p>
+            <p className="text-[#6B7280] text-sm flex items-center gap-1">
+              {/* Mostra o email real para você conferir visualmente */}
+              {safeEmail}
+              {isAdmin && <span className="text-[#F59E0B] text-[10px] border border-[#F59E0B] px-1 rounded ml-1">ADMIN</span>}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-[#E50914] font-bold text-lg">{user.streak} dias</p>
@@ -50,12 +68,12 @@ export default function UserStats({ user, continueEpisode }) {
           </div>
         </div>
 
-        {/* --- BOTÃO DO PROFESSOR (Inserido aqui dentro) --- */}
-        {user.email === ADMIN_EMAIL && (
+        {/* --- BOTÃO DO PROFESSOR (Agora usando safeEmail) --- */}
+        {isAdmin && (
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate('/admin')}
-            className="w-full mt-4 bg-[#1A1A1A] text-white py-3 px-4 rounded-xl font-bold border-l-4 border-[#F59E0B] flex items-center justify-between hover:bg-black transition-colors"
+            className="w-full mt-4 bg-[#1A1A1A] text-white py-3 px-4 rounded-xl font-bold border-l-4 border-[#F59E0B] flex items-center justify-between hover:bg-black transition-colors shadow-lg"
           >
             <div className="flex items-center gap-2">
               <span>👑</span>
@@ -66,11 +84,18 @@ export default function UserStats({ user, continueEpisode }) {
             </svg>
           </motion.button>
         )}
+        
+        {/* DEBUG: Se não for admin, avisa o porquê (só pra você ver) */}
+        {!isAdmin && (
+          <div className="mt-2 text-[10px] text-gray-400 text-center">
+            Logado como: {safeEmail} (Não reconhecido como Admin)
+          </div>
+        )}
         {/* ------------------------------------------------ */}
 
       </motion.div>
 
-      {/* Continue ouvindo - só aparece se tiver dados reais */}
+      {/* Continue ouvindo */}
       {continueEpisode && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

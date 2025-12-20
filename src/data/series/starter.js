@@ -235,8 +235,8 @@ It is a perfect gift.`,
     ]
   },
   // SÉRIE 6 - STARTER (DRAMA)
-  6: {
-    id: 6,
+  7: {
+    id: 7,
     title: "The Photograph",
     level: "Starter",
     genre: "Romance / Drama",

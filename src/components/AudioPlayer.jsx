@@ -32,7 +32,7 @@ function normalizeAndTokenize(text) {
   if (!text) return []
   let clean = text.toLowerCase()
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
-  clean = clean.replace(/[’‘‛`´]/g, "'")
+  clean = clean.replace(/[''‛`´]/g, "'")
   clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   let tokens = clean.split(/\s+/).filter(w => w)
@@ -52,7 +52,6 @@ function normalizeAndTokenize(text) {
 }
 
 // --- ALGORITMO NUCLEAR (WAGNER-FISCHER) ---
-// Substitui o calculateDiff antigo que "desistia" fácil
 function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
   const userTokens = normalizeAndTokenize(userText)
@@ -98,7 +97,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const N = origTokens.length
   const M = actualUserTokens.length
   
-  // Matriz de distâncias (A Mágica Matemática)
+  // Matriz de distâncias
   const dp = Array(N + 1).fill(null).map(() => Array(M + 1).fill(0))
 
   for (let i = 0; i <= N; i++) dp[i][0] = i
@@ -110,15 +109,15 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
         dp[i][j] = dp[i - 1][j - 1]
       } else {
         dp[i][j] = 1 + Math.min(
-          dp[i - 1][j],    // Deletar
-          dp[i][j - 1],    // Inserir
-          dp[i - 1][j - 1] // Substituir
+          dp[i - 1][j],
+          dp[i][j - 1],
+          dp[i - 1][j - 1]
         )
       }
     }
   }
 
-  // Backtracking para gerar o diff visual
+  // Backtracking
   let i = N
   let j = M
   const diffReverse = []
@@ -150,8 +149,6 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   }
 
   const diffResult = diffReverse.reverse()
-  
-  // Reconecta os tokens de cabeçalho ignorados visualmente
   const headerDiffs = userTokens.slice(0, startUserIndex).map(w => ({ type: 'title', word: w }))
   const finalDiff = [...headerDiffs, ...diffResult]
 
@@ -164,6 +161,7 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
 
 export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz }) {
   const audioRef = useRef(null)
+  const textareaRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -172,8 +170,12 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [showDictation, setShowDictation] = useState(false)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
+  const [isFocused, setIsFocused] = useState(false)
   
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
+
+  // Contador de palavras
+  const wordCount = userText.trim() ? userText.trim().split(/\s+/).length : 0
 
   useEffect(() => {
     const audio = audioRef.current
@@ -213,6 +215,13 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     }, 10000)
     return () => clearInterval(interval)
   }, [onTimeUpdate])
+
+  // Auto-focus na textarea quando abre o ditado
+  useEffect(() => {
+    if (showDictation && textareaRef.current && !feedback) {
+      setTimeout(() => textareaRef.current?.focus(), 100)
+    }
+  }, [showDictation, feedback])
 
   const handlePause = () => {
     if (onTimeUpdate && audioRef.current) {
@@ -290,7 +299,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         <p className="text-white font-bold text-center mt-3">{episodeTitle}</p>
       </div>
 
-      {/* Barra de progresso com Efeito Liquid Light */}
+      {/* Barra de progresso */}
       <div className="mb-6">
         <div 
           className="h-2 bg-white/20 rounded-full cursor-pointer group"
@@ -300,7 +309,6 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
             className="h-2 rounded-full smooth-progress relative sexy-progress-bar bg-[#E50914]" 
             style={{ width: `${progress}%` }} 
           >
-            {/* Bolinha na ponta */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover:opacity-100 transition-opacity" />
           </motion.div>
         </div>
@@ -319,7 +327,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
           className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-[0_0_20px_rgba(229,9,20,0.6)] hover:scale-105 transition-all z-10"
         >
           {isPlaying ? (
-            <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
           ) : (
             <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           )}
@@ -342,11 +350,10 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         ))}
       </div>
 
-      {/* --- BOTÕES DE AÇÃO (PILLS) --- */}
-      {/* Aqui a lógica é: Ditado abre dentro do player, Quiz toggle uma prop externa */}
+      {/* Botões de Ação */}
       <div className="border-t border-white/10 pt-4 flex flex-wrap justify-center gap-3">
         
-        {/* Botão 1: Praticar Escrita */}
+        {/* Botão Praticar Escrita */}
         {transcript && (
           <motion.button
             whileTap={{ scale: 0.98 }}
@@ -354,89 +361,252 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
               const newState = !showDictation
               setShowDictation(newState)
               if (newState) setFeedback(null)
-              if (newState && showQuiz) setShowQuiz(false) // Fecha o quiz se abrir a escrita
+              if (newState && showQuiz) setShowQuiz(false)
             }}
             className={`w-fit px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 border ${showDictation ? 'bg-[#F59E0B] text-black border-[#F59E0B]' : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20 hover:bg-[#F59E0B]/20'} shine-effect`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            {showDictation ? 'Fechar Ditado' : 'Praticar Escrita'}
+            {showDictation ? 'Fechar' : 'Praticar Escrita'}
           </motion.button>
         )}
 
-        {/* Botão 2: Responder Quiz */}
+        {/* Botão Quiz */}
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => {
              const newState = !showQuiz
              setShowQuiz(newState)
-             if (newState && showDictation) setShowDictation(false) // Fecha a escrita se abrir o quiz
+             if (newState && showDictation) setShowDictation(false)
           }}
           className={`w-fit px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 border ${showQuiz ? 'bg-[#E50914] text-white border-[#E50914]' : 'bg-[#E50914]/10 text-[#E50914] border-[#E50914]/20 hover:bg-[#E50914]/20'} shine-effect`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          {showQuiz ? 'Esconder Perguntas' : 'Responder Quiz'}
+          {showQuiz ? 'Esconder Quiz' : 'Responder Quiz'}
         </motion.button>
       </div>
 
-      {/* ÁREA DE CONTEÚDO (Apenas Ditado, o Quiz é renderizado pelo pai) */}
+      {/* ============================================ */}
+      {/* ÁREA DE DITADO REDESENHADA                  */}
+      {/* ============================================ */}
       {transcript && (
         <AnimatePresence>
           {showDictation && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 text-left bg-white/5 rounded-xl overflow-hidden border border-white/5">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="mt-6"
+            >
               {!feedback ? (
-                  <div className="p-4">
-                    <p className="text-white/70 text-sm mb-3">Ouça e escreva:</p>
-                    <textarea
-                      value={userText} onChange={(e) => setUserText(e.target.value)} placeholder="Digite aqui..."
-                      className="w-full h-32 p-3 rounded-lg bg-black/30 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#F59E0B] border border-white/10 leading-relaxed font-light"
+                // ========== MODO ESCRITA ==========
+                <div className="relative">
+                  {/* Container principal - Estilo Caderno Premium */}
+                  <motion.div 
+                    className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
+                      isFocused 
+                        ? 'shadow-[0_0_0_2px_rgba(245,158,11,0.5),0_8px_32px_rgba(0,0,0,0.3)]' 
+                        : 'shadow-lg'
+                    }`}
+                  >
+                    {/* Fundo texturizado tipo papel */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#FAF8F5] via-[#F5F3F0] to-[#EFEDE8]" />
+                    
+                    {/* Linhas sutis de caderno */}
+                    <div 
+                      className="absolute inset-0 opacity-[0.03]"
+                      style={{
+                        backgroundImage: 'repeating-linear-gradient(transparent, transparent 31px, #94a3b8 31px, #94a3b8 32px)',
+                        backgroundPosition: '0 16px'
+                      }}
                     />
-                    <div className="flex gap-2 mt-3">
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={handleCheck} disabled={!userText.trim()} className="flex-1 py-3 bg-green-700 hover:bg-green-600 disabled:opacity-50 rounded-lg text-white font-bold transition-colors shadow-lg">Verificar</motion.button>
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium">Limpar</motion.button>
+
+                    {/* Barra lateral decorativa */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-300 ${
+                      isFocused ? 'bg-[#F59E0B]' : 'bg-[#E5E0D8]'
+                    }`} />
+
+                    {/* Conteúdo */}
+                    <div className="relative p-5 pl-6">
+                      {/* Header sutil */}
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[#8B7E6A] text-sm font-medium tracking-wide">
+                          Ouça e escreva o que entender
+                        </p>
+                        <motion.span 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: wordCount > 0 ? 1 : 0.3 }}
+                          className="text-[#B8A990] text-xs font-medium tabular-nums"
+                        >
+                          {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'}
+                        </motion.span>
+                      </div>
+
+                      {/* Textarea elegante */}
+                      <textarea
+                        ref={textareaRef}
+                        value={userText}
+                        onChange={(e) => setUserText(e.target.value)}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        placeholder="Start typing here..."
+                        className="w-full h-48 bg-transparent text-[#3D3529] placeholder-[#C4B8A5] text-lg leading-8 resize-none focus:outline-none font-light tracking-wide"
+                        style={{ caretColor: '#F59E0B' }}
+                      />
+
+                      {/* Botões elegantes */}
+                      <div className="flex gap-3 mt-4 pt-4 border-t border-[#E8E2D9]">
+                        <motion.button 
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleCheck}
+                          disabled={!userText.trim()}
+                          className={`flex-1 py-3.5 rounded-xl font-semibold text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
+                            userText.trim() 
+                              ? 'bg-[#1A1A1A] text-white shadow-md hover:shadow-lg hover:bg-[#2A2A2A]' 
+                              : 'bg-[#E8E2D9] text-[#B8A990] cursor-not-allowed'
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Verificar
+                        </motion.button>
+                        
+                        <motion.button 
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={handleReset}
+                          className="px-5 py-3.5 rounded-xl text-[#8B7E6A] hover:text-[#5C5346] hover:bg-[#E8E2D9] transition-all text-sm font-medium"
+                        >
+                          Limpar
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              ) : (
+                // ========== MODO RESULTADO ==========
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="rounded-2xl overflow-hidden"
+                >
+                  {/* Header do resultado */}
+                  <div className={`p-5 ${
+                    feedback.score >= 90 
+                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' 
+                      : feedback.score >= 70 
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                        : 'bg-gradient-to-r from-slate-600 to-slate-700'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
+                          {feedback.score >= 90 ? 'Excelente!' : feedback.score >= 70 ? 'Bom trabalho!' : 'Continue praticando'}
+                        </p>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-bold text-white">{feedback.score}%</span>
+                          <span className="text-white/60 text-sm">de acerto</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white/90 text-2xl font-semibold">
+                          {feedback.correctCount}<span className="text-white/50 text-lg">/{feedback.total}</span>
+                        </div>
+                        <p className="text-white/60 text-xs">palavras certas</p>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
-                      <div>
-                        <span className="text-white/50 text-xs uppercase tracking-wider">Pontuação</span>
-                        <div className={`text-2xl font-bold ${feedback.score >= 90 ? 'text-green-400' : feedback.score >= 70 ? 'text-yellow-400' : 'text-white/60'}`}>{feedback.score}%</div>
-                      </div>
-                      <div className="text-right flex flex-col items-end">
-                         <div className="text-white text-sm"><span className="text-white/50 text-xs uppercase mr-2">Acertos</span>{feedback.correctCount} / {feedback.total}</div>
-                         <div className="flex gap-2 text-[10px] text-white/50 mt-1">
-                            {feedback.extraCount > 0 && <span>+ {feedback.extraCount} extras</span>}
-                            {feedback.missingCount > 0 && <span>- {feedback.missingCount} faltas</span>}
-                            {feedback.wrongCount > 0 && <span>• {feedback.wrongCount} erros</span>}
-                         </div>
-                      </div>
-                    </div>
 
-                    <div className="bg-black/30 rounded-lg p-4 leading-loose flex flex-wrap gap-1.5 break-words font-light text-base">
+                  {/* Corpo do resultado - Texto corrigido */}
+                  <div className="bg-[#FAF8F5] p-5">
+                    <p className="text-[#8B7E6A] text-xs font-medium uppercase tracking-wider mb-3">
+                      Sua transcrição
+                    </p>
+                    
+                    <div className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E2D9] leading-relaxed text-lg">
                       {feedback.diffResult.map((item, idx) => {
-                        if (item.type === 'title') return <span key={idx} className="text-white/30 select-none mr-1.5 text-xs uppercase">{item.word}</span>
-                        if (item.type === 'correct') return <span key={idx} className="text-white/90">{item.word}</span>
-                        if (item.type === 'missing') return <span key={idx} className="text-yellow-500/80 border-b border-yellow-500/50 border-dashed" title="Faltou">{item.word}</span>
-                        if (item.type === 'extra') return <span key={idx} className="text-white/20 line-through text-sm decoration-white/10 select-none">{item.word}</span>
+                        // Título/Header ignorado
+                        if (item.type === 'title') {
+                          return <span key={idx} className="text-slate-300 text-sm mr-1">{item.word}</span>
+                        }
+                        
+                        // Correto - texto normal
+                        if (item.type === 'correct') {
+                          return <span key={idx} className="text-[#3D3529]">{item.word} </span>
+                        }
+                        
+                        // Faltou - destaque suave amarelo
+                        if (item.type === 'missing') {
+                          return (
+                            <span 
+                              key={idx} 
+                              className="inline-block bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mx-0.5 font-medium"
+                              title="Faltou esta palavra"
+                            >
+                              {item.word}
+                            </span>
+                          )
+                        }
+                        
+                        // Extra - riscado discreto
+                        if (item.type === 'extra') {
+                          return (
+                            <span 
+                              key={idx} 
+                              className="text-slate-400 line-through decoration-slate-300 text-base mx-0.5"
+                            >
+                              {item.word}
+                            </span>
+                          )
+                        }
+                        
+                        // Errado - mostra correção inline
                         return (
-                          <span key={idx} className="inline-flex flex-wrap items-baseline gap-1">
-                            <span className="text-red-400/60 line-through text-sm decoration-red-400/30">{item.word}</span>
-                            <span className="text-green-400 font-medium">{item.expected}</span>
+                          <span key={idx} className="inline-flex items-baseline mx-0.5">
+                            <span className="text-red-400 line-through decoration-red-300 text-base">{item.word}</span>
+                            <span className="text-emerald-600 font-medium ml-1">{item.expected}</span>
                           </span>
                         )
                       })}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-4 text-xs text-white/40 justify-center border-t border-white/5 pt-3">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white/90"></span> Correto</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400/60"></span> Erro</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400"></span> Correção</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500/80"></span> Faltou</span>
+                    {/* Legenda simplificada */}
+                    <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#E8E2D9] justify-center">
+                      <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
+                        <span className="w-3 h-3 rounded bg-amber-100 border border-amber-200"></span>
+                        Faltou
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
+                        <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></span>
+                        Correção
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
+                        <span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 relative">
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="w-full h-px bg-slate-400 rotate-[-10deg]"></span>
+                          </span>
+                        </span>
+                        Extra
+                      </span>
                     </div>
 
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset} className="w-full mt-4 py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium transition-colors">Tentar Novamente</motion.button>
+                    {/* Botão tentar novamente */}
+                    <motion.button 
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={handleReset}
+                      className="w-full mt-5 py-4 rounded-xl bg-[#1A1A1A] text-white font-semibold hover:bg-[#2A2A2A] transition-all flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Tentar Novamente
+                    </motion.button>
                   </div>
-                )}
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

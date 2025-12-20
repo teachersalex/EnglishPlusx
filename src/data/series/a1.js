@@ -1,4 +1,8 @@
 export const seriesA1 = {
+  // ============================================
+  // SÉRIE 1 - A1 (MYSTERY/THRILLER)
+  // The Midnight Key - 3 episódios
+  // ============================================
   1: {
     id: 1,
     title: "The Midnight Key",
@@ -133,6 +137,11 @@ Sarah is alone.`,
       }
     ]
   },
+
+  // ============================================
+  // SÉRIE 4 - A1 (ROMANCE/CITY LIFE)
+  // The Wrong Phone - 3 episódios
+  // ============================================
   4: {
     id: 4,
     title: "The Wrong Phone",
@@ -254,6 +263,11 @@ We laugh together.`,
       }
     ]
   },
+
+  // ============================================
+  // SÉRIE 5 - A1 (DRAMA/ROMANCE)
+  // The Red Lipstick - 4 episódios
+  // ============================================
   5: {
     id: 5,
     title: "The Red Lipstick",
@@ -426,6 +440,11 @@ Lisa is red.
       }
     ]
   },
+
+  // ============================================
+  // SÉRIE 6 - A1 (MEDICAL DRAMA/ROMANCE)
+  // The Doctor's Secret - 4 episódios
+  // ============================================
   6: {
     id: 6,
     title: "The Doctor's Secret",

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- LÓGICA NUCLEAR (CORREÇÃO DE DITADO ROBUSTA) ---
+// ==========================================
+// 1. O CORAÇÃO NUCLEAR (LÓGICA DE CORREÇÃO)
+// ==========================================
+
 const CONTRACTIONS = {
   "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
   "we're": "we are", "they're": "they are", "isn't": "is not", "aren't": "are not",
@@ -9,10 +12,10 @@ const CONTRACTIONS = {
   "didn't": "did not", "won't": "will not", "can't": "can not", "cannot": "can not",
   "couldn't": "could not", "that's": "that is", "what's": "what is", "let's": "let us",
   "gonna": "going to", "wanna": "want to", "gotta": "got to",
-  "im": "i am", "youre": "you are", "hes": "he is", "shes": "she is", "isnt": "is not",
-  "arent": "are not", "wasnt": "was not", "werent": "were not", "dont": "do not",
-  "doesnt": "does not", "didnt": "did not", "wont": "will not", "cant": "can not",
-  "couldnt": "could not", "thats": "that is", "whats": "what is", "lets": "let us"
+  "im": "i am", "youre": "you are", "hes": "he is", "shes": "she is",
+  "isnt": "is not", "arent": "are not", "wasnt": "was not", "werent": "were not",
+  "dont": "do not", "doesnt": "does not", "didnt": "did not", "wont": "will not",
+  "cant": "can not", "couldnt": "could not", "thats": "that is", "whats": "what is", "lets": "let us"
 }
 
 const NUMBER_WORDS = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten', '11': 'eleven', '12': 'twelve' }
@@ -34,6 +37,7 @@ function normalizeAndTokenize(text) {
   return expandedTokens
 }
 
+// Algoritmo Wagner-Fischer (Nuclear)
 function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
   const userTokens = normalizeAndTokenize(userText)
@@ -92,7 +96,10 @@ function calculateDiff(originalText, userText, episodeTitle = "") {
   const score = totalRelevant > 0 ? Math.round((correctCount / totalRelevant) * 100) : 0
   return { diffResult, score, correctCount, total: origTokens.length, extraCount, missingCount, wrongCount }
 }
-// --- FIM DA LÓGICA NUCLEAR ---
+
+// ==========================================
+// 2. O COMPONENTE (INTERFACE)
+// ==========================================
 
 export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, quizData }) {
   const audioRef = useRef(null)
@@ -101,7 +108,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [duration, setDuration] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   
-  // ESTADO DAS PILLS (ABAS)
+  // ESTADO DAS ABAS (As Pills que você queria)
   const [activeTab, setActiveTab] = useState('dictation')
   
   // ESTADO DO DITADO
@@ -180,7 +187,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     <div className="bg-[#1A1A1A] rounded-3xl p-6 shadow-2xl overflow-hidden border border-white/5 relative transition-all duration-300">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
-      {/* --- PARTE 1: PLAYER FIXO (COM GLOW) --- */}
+      {/* --- PARTE SUPERIOR: PLAYER + GLOW --- */}
       <div className="flex flex-col items-center mb-6">
         <div className={`w-40 h-40 rounded-2xl shadow-xl overflow-hidden mb-4 ${isPlaying ? 'breathing-cover' : ''}`}>
           <img src={coverImage} alt={episodeTitle} className="w-full h-full object-cover" />
@@ -188,7 +195,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         <h2 className="text-white font-bold text-lg text-center leading-tight">{episodeTitle}</h2>
       </div>
 
-      {/* Barra de Progresso Sexy */}
+      {/* Barra de Progresso "Sexy" */}
       <div className="mb-4 group">
         <div className="h-2 bg-white/10 rounded-full cursor-pointer overflow-hidden relative" onClick={handleProgressClick}>
           <div className="h-full sexy-progress-bar rounded-full relative" style={{ width: `${progress}%` }}>
@@ -209,8 +216,9 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         <motion.button whileTap={{scale:0.9}} onClick={() => skip(10)} className="text-white/70 hover:text-white"><svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 8c4.65 0 8.58 3.03 9.96 7.22L17.6 16c-1.05-3.19-4.05-5.5-7.6-5.5-1.95 0-3.73.72-5.12 1.88L1.24 16H10v-9z"/></svg></motion.button>
       </div>
 
-      {/* --- PARTE 2: PILLS (ABAS DE NAVEGAÇÃO) --- */}
+      {/* --- AS PILLS (ABAS DE SELEÇÃO) --- */}
       <div className="flex bg-black/30 p-1 rounded-xl mb-6 relative">
+        {/* Fundo Animado da Aba Ativa */}
         <motion.div 
           className="absolute top-1 bottom-1 bg-white/10 rounded-lg shadow-sm"
           initial={false}
@@ -235,11 +243,11 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
         </button>
       </div>
 
-      {/* --- PARTE 3: ÁREA DE CONTEÚDO (DITADO OU QUIZ) --- */}
+      {/* --- ÁREA DE CONTEÚDO --- */}
       <div className="min-h-[300px]">
         <AnimatePresence mode="wait">
           
-          {/* ABA DITADO */}
+          {/* 1. CONTEÚDO DITADO */}
           {activeTab === 'dictation' ? (
             <motion.div 
               key="dictation"
@@ -292,7 +300,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                 )}
             </motion.div>
           ) : (
-            /* ABA QUIZ */
+            /* 2. CONTEÚDO QUIZ */
             <motion.div 
               key="quiz"
               initial={{ opacity: 0, x: 20 }}
@@ -341,7 +349,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                  </div>
                ) : (
                  <div className="flex flex-col items-center justify-center h-40 text-white/50">
-                    <p>O Quiz está carregando ou não disponível.</p>
+                    <p>Carregando quiz...</p>
                  </div>
                )}
             </motion.div>

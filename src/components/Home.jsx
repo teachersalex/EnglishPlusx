@@ -50,8 +50,17 @@ function Home() {
   const [continueEpisode, setContinueEpisode] = useState(null)
 
   // 🔒 CONFIGURAÇÃO DO ADMIN
-  // Certifique-se que seu email está EXATAMENTE assim
   const ADMIN_EMAIL = "alexmg@gmail.com"
+
+  // --- 🕵️ DEBUG NO CONSOLE ---
+  console.log("--------------------------------------------------")
+  console.log("🕵️ DEBUG HOME:")
+  console.log("1. Objeto User completo:", user)
+  console.log("2. Email que veio do Google:", user?.email)
+  console.log("3. Email que o código exige:", ADMIN_EMAIL)
+  console.log("4. Eles são IDÊNTICOS?", user?.email === ADMIN_EMAIL)
+  console.log("--------------------------------------------------")
+  // ---------------------------
 
   // Carrega último progresso ao montar
   useEffect(() => {
@@ -90,21 +99,6 @@ function Home() {
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
       <Header />
-
-      {/* ================================================= */}
-      {/* 🟡 DEBUG FLUTUANTE (FIXO NO RODAPÉ) */}
-      {/* ================================================= */}
-      <div className="fixed bottom-0 left-0 w-full bg-yellow-300 text-black p-4 z-[9999] shadow-2xl border-t-4 border-black text-center font-mono text-sm">
-         <p>LOGADO NO GOOGLE COMO: <strong className="bg-white px-2 py-1 rounded">{user ? user.email : 'DESLOGADO'}</strong></p>
-         <p className="mt-2">O CÓDIGO ESPERA: <strong className="bg-white px-2 py-1 rounded">{ADMIN_EMAIL}</strong></p>
-         
-         {user && user.email === ADMIN_EMAIL ? (
-            <p className="mt-2 text-green-800 font-bold font-sans">✅ EMAILS BATEM! O BOTÃO DEVE APARECER.</p>
-         ) : (
-            <p className="mt-2 text-red-600 font-bold font-sans">❌ NÃO BATEM. VERIFIQUE SE TEM LETRA MAIÚSCULA.</p>
-         )}
-      </div>
-      {/* ================================================= */}
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         

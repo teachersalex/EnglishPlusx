@@ -21,7 +21,7 @@ function EpisodePage() {
   const [audioTime, setAudioTime] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(true)
   
-  // NOVO: Estado para controlar a visibilidade do Quiz
+  // Estado que controla a visibilidade do Quiz (passado para o Player)
   const [showQuiz, setShowQuiz] = useState(false)
   
   const { user, updateUserXP, saveProgress, getProgress } = useAuth()
@@ -40,10 +40,10 @@ function EpisodePage() {
     setAudioTime(0)
     setLoadingProgress(true)
     setLastAnswerCorrect(false)
-    setShowQuiz(false) // Quiz começa fechado
+    setShowQuiz(false)
   }, [id, episodeId])
 
-  // Carrega progresso DEPOIS de resetar
+  // Carrega progresso
   useEffect(() => {
     async function loadProgress() {
       if (!user || !episode) {
@@ -58,7 +58,7 @@ function EpisodePage() {
         setScore(progress.score || 0)
         setAudioTime(progress.audioTime || 0)
         
-        // UX: Se já começou a responder, mostra o quiz aberto
+        // Se já começou, mostra o quiz aberto
         if ((progress.currentQuestion || 0) > 0) {
           setShowQuiz(true)
         }
@@ -87,7 +87,6 @@ function EpisodePage() {
     )
   }
 
-  // Bloqueio para não logados
   if (!user) {
     return (
       <div className="min-h-screen bg-[#F0F0F0]">
@@ -131,7 +130,6 @@ function EpisodePage() {
 
   const handleAnswer = async (index) => {
     if (selectedAnswer !== null) return
-    
     setSelectedAnswer(index)
     const isCorrect = index === currentQuestion.correctAnswer
     setLastAnswerCorrect(isCorrect)
@@ -153,13 +151,11 @@ function EpisodePage() {
         })
       }
     }
-    
     setShowMiniModal(true)
   }
 
   const handleNextQuestion = async () => {
     setShowMiniModal(false)
-    
     if (isLastQuestion) {
       if (user) {
         saveProgress(id, episodeId, {
@@ -178,7 +174,6 @@ function EpisodePage() {
       const nextIndex = currentQuestionIndex + 1
       setCurrentQuestionIndex(nextIndex)
       setSelectedAnswer(null)
-      
       if (user) {
         saveProgress(id, episodeId, {
           audioTime,
@@ -238,7 +233,7 @@ function EpisodePage() {
       <Header showBack backTo={`/series/${id}`} />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* Player de áudio */}
+        {/* Player de áudio (Agora recebe o controle do quiz) */}
         <motion.div
           key={`${id}-${episodeId}`}
           initial={{ opacity: 0, y: 20 }}
@@ -252,34 +247,13 @@ function EpisodePage() {
             initialTime={audioTime}
             onTimeUpdate={handleTimeUpdate}
             transcript={episode.text}
+            // PASSANDO O CONTROLE PARA O PLAYER
+            showQuiz={showQuiz}
+            setShowQuiz={setShowQuiz}
           />
         </motion.div>
 
-        {/* PILL DO QUIZ - O Toggle fica aqui */}
-        <div className="text-center mb-6">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowQuiz(!showQuiz)}
-            className={`
-              w-fit mx-auto px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 border shadow-sm
-              ${showQuiz 
-                ? 'bg-[#E50914]/10 text-[#E50914] border-[#E50914]/20' 
-                : 'bg-white text-[#1A1A1A] border-gray-200 hover:border-gray-300'
-              }
-            `}
-          >
-            {showQuiz ? (
-               // Ícone de "Fechar" (Chevron Up ou X)
-               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-            ) : (
-               // Ícone de "Quiz/Perguntas"
-               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-            )}
-            {showQuiz ? 'Esconder Perguntas' : 'Responder Quiz'}
-          </motion.button>
-        </div>
-
-        {/* ÁREA EXPANSÍVEL DO QUIZ */}
+        {/* ÁREA EXPANSÍVEL DO QUIZ (O botão sumiu daqui) */}
         <AnimatePresence>
           {showQuiz && (
             <motion.div
@@ -309,7 +283,6 @@ function EpisodePage() {
                 
                 <div className="space-y-3">
                   {currentQuestion.options.map((option, index) => {
-                    
                     const isSelected = selectedAnswer === index
                     const showResult = selectedAnswer !== null
                     const isCorrectAnswer = index === currentQuestion.correctAnswer

@@ -1,15 +1,91 @@
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useAuth, BADGE_DEFINITIONS } from '../contexts/AuthContext'
 
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
+  const { getUserBadges } = useAuth()
+  const [badges, setBadges] = useState([])
+  const [showAllBadges, setShowAllBadges] = useState(false)
+  const [seenBadges, setSeenBadges] = useState([])
+  const [streakJustChanged, setStreakJustChanged] = useState(false)
   
+  // Detecta mudança no streak (compara com última vez que viu)
+  useEffect(() => {
+    if (!user?.uid) return
+    
+    const currentStreak = user.streak || 0
+    const storageKey = `lastSeenStreak_${user.uid}`
+    const lastSeen = parseInt(localStorage.getItem(storageKey) || '0', 10)
+    
+    // Se streak subiu desde a última vez que viu → anima
+    if (currentStreak > lastSeen) {
+      setStreakJustChanged(true)
+      setTimeout(() => {
+        setStreakJustChanged(false)
+        localStorage.setItem(storageKey, String(currentStreak))
+      }, 2000)
+    } else if (currentStreak !== lastSeen) {
+      // Se caiu (resetou), atualiza sem animar
+      localStorage.setItem(storageKey, String(currentStreak))
+    }
+  }, [user?.uid, user?.streak])
+  
+  // Carrega badges vistos do localStorage
+  useEffect(() => {
+    if (!user?.uid) return
+    const storageKey = `seenBadges_${user.uid}`
+    const stored = localStorage.getItem(storageKey)
+    if (stored) {
+      setSeenBadges(JSON.parse(stored))
+    }
+  }, [user?.uid])
+
+  // Carrega badges do usuário
+  useEffect(() => {
+    async function loadBadges() {
+      if (getUserBadges) {
+        const userBadges = await getUserBadges()
+        setBadges(userBadges)
+      } else if (user?.badges) {
+        setBadges(user.badges)
+      }
+    }
+    if (user) loadBadges()
+  }, [user, getUserBadges])
+
+  // Marca badges como vistos após 3 segundos
+  useEffect(() => {
+    if (!user?.uid || badges.length === 0) return
+    
+    const newBadges = badges.filter(b => !seenBadges.includes(b))
+    if (newBadges.length === 0) return
+    
+    const timer = setTimeout(() => {
+      const storageKey = `seenBadges_${user.uid}`
+      const allSeen = [...new Set([...seenBadges, ...badges])]
+      localStorage.setItem(storageKey, JSON.stringify(allSeen))
+      setSeenBadges(allSeen)
+    }, 3000)
+    
+    return () => clearTimeout(timer)
+  }, [badges, seenBadges, user?.uid])
+
+  // Early return após todos os hooks
   if (!user) return null
   
   // Calcula nível
   const level = Math.floor(user.xp / 100) + 1
   const xpInLevel = user.xp % 100
   const xpProgress = (xpInLevel / 100) * 100
+
+  // Verifica se badge é novo (não foi visto ainda)
+  const isNewBadge = (badgeId) => !seenBadges.includes(badgeId)
+
+  // Badges para exibir (máximo 4 no preview)
+  const displayBadges = badges.slice(0, 4)
+  const hasMoreBadges = badges.length > 4
 
   return (
     <div className="mb-8">
@@ -24,27 +100,163 @@ export default function UserStats({ user, continueEpisode }) {
             <h1 className="text-2xl font-bold text-[#1A1A1A]">Olá, {user.name}!</h1>
             <p className="text-[#6B7280] text-sm">Continue sua jornada</p>
           </div>
-          <div className="text-right">
-            <p className="text-[#E50914] font-bold text-lg">{user.streak} dias</p>
-            <p className="text-[#6B7280] text-xs">seguidos</p>
+          
+          {/* Streak com animação */}
+          <div className="text-right relative">
+            {/* Glow effect quando muda */}
+            <AnimatePresence>
+              {streakJustChanged && (
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 2, opacity: 0 }}
+                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  className="absolute inset-0 bg-[#E50914] rounded-full blur-xl"
+                />
+              )}
+            </AnimatePresence>
+            
+            <motion.div
+              animate={streakJustChanged ? {
+                scale: [1, 1.3, 1],
+                transition: { duration: 0.5, ease: "easeOut" }
+              } : {}}
+              className="relative"
+            >
+              <div className="flex items-center gap-1 justify-end">
+                {streakJustChanged && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="text-orange-500 text-sm"
+                  >
+                    🔥
+                  </motion.span>
+                )}
+                <motion.p 
+                  className={`font-bold text-lg ${streakJustChanged ? 'text-orange-500' : 'text-[#E50914]'}`}
+                  animate={streakJustChanged ? {
+                    textShadow: ['0 0 0px #E50914', '0 0 20px #E50914', '0 0 0px #E50914']
+                  } : {}}
+                  transition={{ duration: 1 }}
+                >
+                  {user.streak || 0} dias
+                </motion.p>
+              </div>
+              <p className="text-[#6B7280] text-xs">seguidos</p>
+            </motion.div>
           </div>
         </div>
 
-        {/* Barra de XP */}
-        <div>
+        {/* Barra de XP com Glow */}
+        <div className="mb-4">
           <div className="flex justify-between text-sm mb-1">
             <span className="font-bold text-[#1A1A1A]">Nível {level}</span>
-            <span className="text-[#6B7280]">{user.xp} XP</span>
+            <span className="text-[#6B7280]">{user.xp || 0} XP</span>
           </div>
           <div className="h-3 bg-[#F0F0F0] rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${xpProgress}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full bg-[#E50914] rounded-full"
+              className="h-full rounded-full sexy-progress-bar"
+              style={{
+                background: 'linear-gradient(90deg, #E50914 0%, #ff6b6b 50%, #E50914 100%)',
+                backgroundSize: '200% 100%',
+                animation: 'flow-shine 3s linear infinite',
+                boxShadow: '0 0 10px rgba(229, 9, 20, 0.5)'
+              }}
             />
           </div>
+          <p className="text-[#6B7280] text-xs mt-1 text-right">
+            {100 - xpInLevel} XP para o próximo nível
+          </p>
         </div>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <div className="pt-4 border-t border-[#F0F0F0]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[#6B7280] text-xs font-medium uppercase tracking-wide">
+                Conquistas
+              </p>
+              {hasMoreBadges && (
+                <button 
+                  onClick={() => setShowAllBadges(!showAllBadges)}
+                  className="text-[#E50914] text-xs font-medium hover:underline"
+                >
+                  {showAllBadges ? 'Ver menos' : `Ver todas (${badges.length})`}
+                </button>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <AnimatePresence>
+                {(showAllBadges ? badges : displayBadges).map((badgeId, index) => {
+                  const badge = BADGE_DEFINITIONS[badgeId]
+                  if (!badge) return null
+                  
+                  const isNew = isNewBadge(badgeId)
+                  
+                  return (
+                    <motion.div
+                      key={badgeId}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="group relative"
+                    >
+                      {/* Glow effect para badges novos */}
+                      {isNew && (
+                        <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl blur opacity-50 animate-pulse" />
+                      )}
+                      
+                      <div className={`relative w-10 h-10 bg-gradient-to-br from-[#1A1A1A] to-[#333] rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-shadow cursor-pointer ${isNew ? 'ring-2 ring-yellow-400' : ''}`}>
+                        <span className="text-lg">{badge.icon}</span>
+                      </div>
+                      
+                      {/* NEW indicator */}
+                      {isNew && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                          <span className="text-[8px] font-bold text-black">✦</span>
+                        </span>
+                      )}
+                      
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#1A1A1A] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                        <p className="font-bold">{badge.name}</p>
+                        <p className="text-white/70">{badge.description}</p>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1A1A1A]" />
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+              
+              {/* Placeholder para badges não conquistados */}
+              {badges.length < 3 && (
+                <div className="w-10 h-10 bg-[#F0F0F0] rounded-xl flex items-center justify-center border-2 border-dashed border-[#D1D5DB]">
+                  <span className="text-[#D1D5DB] text-lg">?</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Mostra hint se não tem badges */}
+        {badges.length === 0 && (
+          <div className="pt-4 border-t border-[#F0F0F0]">
+            <div className="flex items-center gap-3 p-3 bg-[#F9FAFB] rounded-xl">
+              <div className="w-10 h-10 bg-[#F0F0F0] rounded-xl flex items-center justify-center">
+                <span className="text-lg">🏆</span>
+              </div>
+              <div>
+                <p className="text-[#1A1A1A] text-sm font-medium">Conquistas</p>
+                <p className="text-[#6B7280] text-xs">Complete episódios para ganhar badges!</p>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Continue ouvindo */}

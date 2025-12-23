@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateDiff } from '../utils/dictationDiff'
 import { useAuth } from '../contexts/AuthContext'
+import BadgeCelebrationModal from './modals/BadgeCelebrationModal'
 
 // ============================================
 // TYPING SOUND ENGINE (Real Audio File)
@@ -47,12 +48,12 @@ class TypingSoundEngine {
     source.buffer = this.audioBuffer
     
     // Variação de pitch (0.9 a 1.1) — cada tecla soa diferente
-    source.playbackRate.value = 0.95 + Math.random() * 0.1
+    source.playbackRate.value = 0.9 + Math.random() * 0.2
     
     // Gain node para volume
     const gainNode = this.audioContext.createGain()
     // Variação de volume (0.3 a 0.5) — sutil mas presente
-    gainNode.gain.value = 0.05 + Math.random() * 0.1
+    gainNode.gain.value = 0.3 + Math.random() * 0.2
     
     // Conecta
     source.connect(gainNode)
@@ -91,7 +92,7 @@ export default function AudioPlayer({
 }) {
   const audioRef = useRef(null)
   const textareaRef = useRef(null)
-  const { user, saveTranscription } = useAuth()
+  const { user, saveTranscription, saveDictationScore, updateUserXP, updateStreak, getProgress } = useAuth()
   
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -105,6 +106,10 @@ export default function AudioPlayer({
   const [isTyping, setIsTyping] = useState(false)
   const [typingSoundEnabled, setTypingSoundEnabled] = useState(true)
   const [attemptCount, setAttemptCount] = useState(0)
+  const [xpEarned, setXpEarned] = useState(0)
+  const [isNewRecord, setIsNewRecord] = useState(false)
+  const [previousBest, setPreviousBest] = useState(0)
+  const [badgesToCelebrate, setBadgesToCelebrate] = useState([])
   
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
   const typingTimeoutRef = useRef(null)
@@ -239,7 +244,7 @@ export default function AudioPlayer({
     setTypingSoundEnabled(newState)
   }
 
-  // Verificar transcrição + Auto-save
+  // Verificar transcrição + Auto-save + XP
   const handleCheck = async () => {
     if (!userText.trim() || !transcript) return
     
@@ -248,6 +253,65 @@ export default function AudioPlayer({
     
     const newAttemptCount = attemptCount + 1
     setAttemptCount(newAttemptCount)
+    
+    // [v10.4] Calcula XP baseado no score
+    let xp = 1 // <70% = 1 XP (incentivo)
+    if (result.score >= 90) xp = 20
+    else if (result.score >= 70) xp = 10
+    
+    setXpEarned(xp)
+    
+    // [v10.4] Verifica se é novo recorde
+    let prevBest = 0
+    if (user && getProgress && seriesId && episodeId) {
+      try {
+        const progress = await getProgress(seriesId, episodeId)
+        prevBest = progress?.dictationBestScore || 0
+        setPreviousBest(prevBest)
+        setIsNewRecord(result.score > prevBest)
+      } catch (err) {
+        console.error("Erro ao buscar recorde:", err)
+      }
+    }
+    
+    // [v10.5] Coleta badges de todas as ações
+    let allNewBadges = []
+    
+    // Atualiza streak diário
+    if (user && updateStreak) {
+      try {
+        const streakBadges = await updateStreak()
+        if (streakBadges?.length) allNewBadges.push(...streakBadges)
+      } catch (err) {
+        console.error("Erro ao atualizar streak:", err)
+      }
+    }
+    
+    // Dá XP pro usuário
+    if (user && updateUserXP) {
+      try {
+        const xpBadges = await updateUserXP(xp)
+        if (xpBadges?.length) allNewBadges.push(...xpBadges)
+      } catch (err) {
+        console.error("Erro ao dar XP:", err)
+      }
+    }
+    
+    // Salva melhor score do ditado para gamificação
+    if (user && saveDictationScore && seriesId && episodeId) {
+      try {
+        const scoreBadges = await saveDictationScore(seriesId, episodeId, result.score)
+        if (scoreBadges?.length) allNewBadges.push(...scoreBadges)
+      } catch (err) {
+        console.error("Erro ao salvar dictation score:", err)
+      }
+    }
+    
+    // Remove duplicatas e dispara celebração
+    const uniqueBadges = [...new Set(allNewBadges)]
+    if (uniqueBadges.length > 0) {
+      setBadgesToCelebrate(uniqueBadges)
+    }
     
     // [v10.3] AUTO-SAVE da transcrição
     if (user && saveTranscription) {
@@ -268,7 +332,6 @@ export default function AudioPlayer({
         })
       } catch (err) {
         console.error("Erro ao salvar transcrição:", err)
-        // Não bloqueia a UX se falhar
       }
     }
   }
@@ -276,6 +339,8 @@ export default function AudioPlayer({
   const handleReset = () => {
     setUserText('')
     setFeedback(null)
+    setXpEarned(0)
+    setIsNewRecord(false)
   }
 
   const formatTime = (time) => {
@@ -575,14 +640,55 @@ export default function AudioPlayer({
                       </div>
                     </div>
                     
-                    {/* Badge de tentativa */}
-                    {attemptCount > 1 && (
-                      <div className="mt-3 pt-3 border-t border-white/20">
-                        <span className="text-white/50 text-xs">
-                          Tentativa #{attemptCount} • Transcrição salva automaticamente
-                        </span>
-                      </div>
-                    )}
+                    {/* [v10.4] Badges de XP + Recorde + Diamante */}
+                    <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap items-center gap-2">
+                      {/* XP Badge */}
+                      <motion.div
+                        initial={{ scale: 0, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.2, type: "spring" }}
+                        className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                      >
+                        <span className="text-yellow-300 text-sm">⭐</span>
+                        <span className="text-white font-bold text-sm">+{xpEarned} XP</span>
+                      </motion.div>
+                      
+                      {/* Novo Recorde Badge */}
+                      {isNewRecord && (
+                        <motion.div
+                          initial={{ scale: 0, rotate: 10 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.3, type: "spring" }}
+                          className="flex items-center gap-1.5 bg-yellow-400/30 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                        >
+                          <span className="text-sm">🏆</span>
+                          <span className="text-yellow-100 font-bold text-sm">Novo Recorde!</span>
+                        </motion.div>
+                      )}
+                      
+                      {/* Diamond Progress */}
+                      {feedback.score >= 95 ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ delay: 0.4, type: "spring" }}
+                          className="flex items-center gap-1.5 bg-cyan-400/30 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                        >
+                          <span className="text-sm">💎</span>
+                          <span className="text-cyan-100 font-bold text-sm">Nível Diamante!</span>
+                        </motion.div>
+                      ) : feedback.score >= 80 ? (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                          className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full"
+                        >
+                          <span className="text-sm opacity-50">💎</span>
+                          <span className="text-white/70 text-xs">Faltam {95 - feedback.score}% para 💎</span>
+                        </motion.div>
+                      ) : null}
+                    </div>
                   </div>
 
                   {/* Corpo do resultado */}
@@ -672,6 +778,12 @@ export default function AudioPlayer({
           )}
         </AnimatePresence>
       )}
+      
+      {/* Modal de celebração de badges */}
+      <BadgeCelebrationModal 
+        badges={badgesToCelebrate} 
+        onComplete={() => setBadgesToCelebrate([])} 
+      />
     </div>
   )
 }

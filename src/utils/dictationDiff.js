@@ -3,7 +3,7 @@
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
 // Wagner-Fischer (Edit Distance) + Semantic Expansion
-// v10.3 — Name Variations + Score Justo
+// v10.4 — Possessives + Unicode Apostrophes
 // ============================================
 
 // Mapa de contrações EXTENDIDO (A1-B2 coverage)
@@ -182,8 +182,8 @@ export function normalizeAndTokenize(text) {
   // 2. Remove acentos
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
   
-  // 3. Normaliza apóstrofos (diversos tipos para o padrão ')
-  clean = clean.replace(/['`´]/g, "'")
+  // 3. Normaliza apóstrofos (TODOS os tipos Unicode para o padrão ')
+  clean = clean.replace(/[''ʼʻ`´]/g, "'")
   
   // 4. Converte números para extenso
   clean = clean.replace(/\b([0-9]|1[0-9]|20)\b/g, (match) => NUMBER_WORDS[match] || match)
@@ -208,7 +208,17 @@ export function normalizeAndTokenize(text) {
 
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
     
-    if (CONTRACTIONS[tokenClean]) {
+    // [v10.4] Verifica se é possessivo ('s no final) antes de expandir contrações
+    // Possessivo: husband's, David's, Lisa's → husbands, davids, lisas
+    // Não é contração como "he's" (he is) ou "it's" (it is)
+    const isPossessive = tokenClean.endsWith("'s") && !CONTRACTIONS[tokenClean]
+    
+    if (isPossessive) {
+      // Remove o 's e adiciona apenas a palavra base + s
+      const baseWord = tokenNoApostrophe // husband's → husbands
+      const normalizedToken = normalizeNameVariation(baseWord)
+      expandedTokens.push(normalizedToken)
+    } else if (CONTRACTIONS[tokenClean]) {
       expandedTokens.push(...CONTRACTIONS[tokenClean].split(' '))
     } else if (CONTRACTIONS[tokenNoApostrophe]) {
       expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))

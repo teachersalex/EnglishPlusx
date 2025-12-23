@@ -70,6 +70,37 @@ export function AuthProvider({ children }) {
     return snap.docs[0].data()
   }
 
+  // ============================================
+  // [v10.3] SALVAR TRANSCRIÇÃO DO DITADO
+  // Auto-save quando aluno clica "Verificar"
+  // ============================================
+  async function saveTranscription(data) {
+    if (!user) return
+    
+    // Gera ID único: seriesId_episodeId_timestamp
+    const docId = `${data.seriesId}_${data.episodeId}_${Date.now()}`
+    const transcriptionRef = doc(db, 'users', user.uid, 'transcriptions', docId)
+    
+    await setDoc(transcriptionRef, {
+      ...data,
+      odAt: new Date().toISOString()
+    })
+  }
+
+  // [v10.3] Buscar histórico de transcrições de um episódio
+  async function getTranscriptions(seriesId, episodeId) {
+    if (!user) return []
+    
+    const transcriptionsRef = collection(db, 'users', user.uid, 'transcriptions')
+    const q = query(transcriptionsRef, orderBy('timestamp', 'desc'))
+    const snap = await getDocs(q)
+    
+    // Filtra pelo episódio específico
+    return snap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(t => t.seriesId === seriesId && t.episodeId === episodeId)
+  }
+
   // Cria ou atualiza dados do usuário no Firestore
   async function createUserData(uid, email, name) {
     const userRef = doc(db, 'users', uid)
@@ -147,6 +178,8 @@ export function AuthProvider({ children }) {
     saveProgress,
     getProgress,
     getLastProgress,
+    saveTranscription,      // [v10.3] Nova função
+    getTranscriptions,      // [v10.3] Nova função
     loading
   }
 

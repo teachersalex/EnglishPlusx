@@ -1,10 +1,110 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateDiff } from '../utils/dictationDiff'
+import { useAuth } from '../contexts/AuthContext'
 
-export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initialTime, onTimeUpdate, transcript, showQuiz, setShowQuiz }) {
+// ============================================
+// TYPING SOUND ENGINE (Web Audio API)
+// Som de teclado mecânico satisfatório
+// ============================================
+class TypingSoundEngine {
+  constructor() {
+    this.audioContext = null
+    this.enabled = true
+  }
+
+  init() {
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    }
+  }
+
+  play() {
+    if (!this.enabled || !this.audioContext) return
+    
+    // Resume context if suspended (browser autoplay policy)
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume()
+    }
+
+    const now = this.audioContext.currentTime
+
+    // Oscilador principal (click)
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    const filter = this.audioContext.createBiquadFilter()
+
+    // Som tipo Cherry MX - curto e satisfatório
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(1800, now)
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.02)
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(3000, now)
+    filter.Q.setValueAtTime(1, now)
+
+    gain.gain.setValueAtTime(0.08, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.audioContext.destination)
+
+    osc.start(now)
+    osc.stop(now + 0.05)
+
+    // Segundo click sutil (bounce do keycap)
+    setTimeout(() => {
+      if (!this.enabled || !this.audioContext) return
+      
+      const osc2 = this.audioContext.createOscillator()
+      const gain2 = this.audioContext.createGain()
+      
+      osc2.type = 'sine'
+      osc2.frequency.setValueAtTime(800, this.audioContext.currentTime)
+      
+      gain2.gain.setValueAtTime(0.02, this.audioContext.currentTime)
+      gain2.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.02)
+      
+      osc2.connect(gain2)
+      gain2.connect(this.audioContext.destination)
+      
+      osc2.start()
+      osc2.stop(this.audioContext.currentTime + 0.02)
+    }, 15)
+  }
+
+  toggle() {
+    this.enabled = !this.enabled
+    return this.enabled
+  }
+
+  setEnabled(value) {
+    this.enabled = value
+  }
+}
+
+const typingSound = new TypingSoundEngine()
+
+// ============================================
+// AUDIO PLAYER COMPONENT
+// ============================================
+export default function AudioPlayer({ 
+  audioUrl, 
+  coverImage, 
+  episodeTitle, 
+  initialTime, 
+  onTimeUpdate, 
+  transcript, 
+  showQuiz, 
+  setShowQuiz,
+  seriesId,
+  episodeId 
+}) {
   const audioRef = useRef(null)
   const textareaRef = useRef(null)
+  const { user, saveTranscription } = useAuth()
+  
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -14,11 +114,30 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingSoundEnabled, setTypingSoundEnabled] = useState(true)
+  const [attemptCount, setAttemptCount] = useState(0)
   
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
+  const typingTimeoutRef = useRef(null)
 
   // Contador de palavras
   const wordCount = userText.trim() ? userText.trim().split(/\s+/).length : 0
+
+  // Inicializa o engine de som no primeiro interaction
+  useEffect(() => {
+    const initSound = () => {
+      typingSound.init()
+      document.removeEventListener('click', initSound)
+      document.removeEventListener('keydown', initSound)
+    }
+    document.addEventListener('click', initSound, { once: true })
+    document.addEventListener('keydown', initSound, { once: true })
+    return () => {
+      document.removeEventListener('click', initSound)
+      document.removeEventListener('keydown', initSound)
+    }
+  }, [])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -108,10 +227,62 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
     if(audioRef.current) audioRef.current.currentTime = percent * duration
   }
 
-  const handleCheck = () => {
+  // Handler de digitação com som
+  const handleTextChange = useCallback((e) => {
+    const newText = e.target.value
+    const isAddingChar = newText.length > userText.length
+    
+    setUserText(newText)
+    
+    // Som de digitação (só quando adiciona caractere)
+    if (isAddingChar && typingSoundEnabled) {
+      typingSound.play()
+    }
+    
+    // Estado de "digitando" para animação
+    setIsTyping(true)
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 150)
+  }, [userText, typingSoundEnabled])
+
+  // Toggle som de digitação
+  const toggleTypingSound = () => {
+    const newState = typingSound.toggle()
+    setTypingSoundEnabled(newState)
+  }
+
+  // Verificar transcrição + Auto-save
+  const handleCheck = async () => {
     if (!userText.trim() || !transcript) return
+    
     const result = calculateDiff(transcript, userText, episodeTitle)
     setFeedback(result)
+    
+    const newAttemptCount = attemptCount + 1
+    setAttemptCount(newAttemptCount)
+    
+    // [v10.3] AUTO-SAVE da transcrição
+    if (user && saveTranscription) {
+      try {
+        await saveTranscription({
+          seriesId,
+          episodeId,
+          episodeTitle,
+          userText: userText.trim(),
+          score: result.score,
+          correctCount: result.correctCount,
+          total: result.total,
+          extraCount: result.extraCount,
+          missingCount: result.missingCount,
+          wrongCount: result.wrongCount,
+          attemptNumber: newAttemptCount,
+          timestamp: new Date().toISOString()
+        })
+      } catch (err) {
+        console.error("Erro ao salvar transcrição:", err)
+        // Não bloqueia a UX se falhar
+      }
+    }
   }
 
   const handleReset = () => {
@@ -229,7 +400,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
       </div>
 
       {/* ============================================ */}
-      {/* ÁREA DE DITADO                              */}
+      {/* ÁREA DE DITADO — THE GOLD                   */}
       {/* ============================================ */}
       {transcript && (
         <AnimatePresence>
@@ -248,55 +419,114 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                     className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
                       isFocused 
                         ? 'shadow-[0_0_0_2px_rgba(245,158,11,0.5),0_8px_32px_rgba(0,0,0,0.3)]' 
-                        : 'shadow-lg'
+                        : 'shadow-[0_4px_20px_rgba(0,0,0,0.15)]'
                     }`}
+                    animate={isTyping ? { scale: [1, 1.002, 1] } : {}}
+                    transition={{ duration: 0.1 }}
                   >
-                    {/* Fundo texturizado */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#FAF8F5] via-[#F5F3F0] to-[#EFEDE8]" />
+                    {/* Fundo texturizado premium */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#FAF8F5] via-[#F7F5F2] to-[#F0EDE8]" />
                     
-                    {/* Linhas de caderno */}
+                    {/* Textura sutil de papel */}
                     <div 
-                      className="absolute inset-0 opacity-[0.03]"
+                      className="absolute inset-0 opacity-[0.02]"
                       style={{
-                        backgroundImage: 'repeating-linear-gradient(transparent, transparent 31px, #94a3b8 31px, #94a3b8 32px)',
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+                      }}
+                    />
+                    
+                    {/* Linhas de caderno refinadas */}
+                    <div 
+                      className="absolute inset-0 opacity-[0.04]"
+                      style={{
+                        backgroundImage: 'repeating-linear-gradient(transparent, transparent 31px, #64748b 31px, #64748b 32px)',
                         backgroundPosition: '0 16px'
                       }}
                     />
 
-                    {/* Barra lateral */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-300 ${
-                      isFocused ? 'bg-[#F59E0B]' : 'bg-[#E5E0D8]'
+                    {/* Barra lateral estilo Moleskine */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300 ${
+                      isFocused 
+                        ? 'bg-gradient-to-b from-[#F59E0B] via-[#F59E0B] to-[#D97706] shadow-[2px_0_8px_rgba(245,158,11,0.3)]' 
+                        : 'bg-gradient-to-b from-[#E5E0D8] to-[#D4CFC5]'
                     }`} />
 
                     {/* Conteúdo */}
-                    <div className="relative p-5 pl-6">
+                    <div className="relative p-5 pl-7">
+                      {/* Header com toggle de som */}
                       <div className="flex items-center justify-between mb-4">
                         <p className="text-[#8B7E6A] text-sm font-medium tracking-wide">
                           Ouça e escreva o que entender
                         </p>
-                        <motion.span 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: wordCount > 0 ? 1 : 0.3 }}
-                          className="text-[#B8A990] text-xs font-medium tabular-nums"
-                        >
-                          {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'}
-                        </motion.span>
+                        <div className="flex items-center gap-3">
+                          {/* Toggle de som */}
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={toggleTypingSound}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              typingSoundEnabled 
+                                ? 'text-[#F59E0B] bg-[#F59E0B]/10' 
+                                : 'text-[#C4B8A5] hover:text-[#8B7E6A]'
+                            }`}
+                            title={typingSoundEnabled ? 'Desativar som' : 'Ativar som'}
+                          >
+                            {typingSoundEnabled ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                              </svg>
+                            )}
+                          </motion.button>
+                          
+                          {/* Contador de palavras */}
+                          <motion.span 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: wordCount > 0 ? 1 : 0.3 }}
+                            className="text-[#B8A990] text-xs font-medium tabular-nums"
+                          >
+                            {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'}
+                          </motion.span>
+                        </div>
                       </div>
 
-                      <textarea
-                        ref={textareaRef}
-                        value={userText}
-                        onChange={(e) => setUserText(e.target.value)}
-                        onFocus={() => setIsFocused(true)}
-                        onBlur={() => setIsFocused(false)}
-                        placeholder="Start typing here..."
-                        className="w-full h-48 bg-transparent text-[#3D3529] placeholder-[#C4B8A5] text-lg leading-8 resize-none focus:outline-none font-light tracking-wide"
-                        style={{ caretColor: '#F59E0B' }}
-                      />
+                      {/* Textarea com feedback de digitação */}
+                      <div className="relative">
+                        <textarea
+                          ref={textareaRef}
+                          value={userText}
+                          onChange={handleTextChange}
+                          onFocus={() => setIsFocused(true)}
+                          onBlur={() => setIsFocused(false)}
+                          placeholder="Start typing here..."
+                          className="w-full h-48 bg-transparent text-[#3D3529] placeholder-[#C4B8A5] text-lg leading-8 resize-none focus:outline-none font-light tracking-wide"
+                          style={{ caretColor: '#F59E0B' }}
+                          spellCheck={false}
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                        />
+                        
+                        {/* Indicador de digitação ativa */}
+                        <AnimatePresence>
+                          {isTyping && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              className="absolute bottom-2 right-2 w-2 h-2 bg-[#F59E0B] rounded-full"
+                            />
+                          )}
+                        </AnimatePresence>
+                      </div>
 
+                      {/* Botões de ação */}
                       <div className="flex gap-3 mt-4 pt-4 border-t border-[#E8E2D9]">
                         <motion.button 
-                          whileHover={{ scale: 1.02 }}
+                          whileHover={{ scale: 1.02, y: -1 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={handleCheck}
                           disabled={!userText.trim()}
@@ -329,7 +559,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="rounded-2xl overflow-hidden"
+                  className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
                 >
                   {/* Header do resultado */}
                   <div className={`p-5 ${
@@ -356,6 +586,15 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                         <p className="text-white/60 text-xs">palavras certas</p>
                       </div>
                     </div>
+                    
+                    {/* Badge de tentativa */}
+                    {attemptCount > 1 && (
+                      <div className="mt-3 pt-3 border-t border-white/20">
+                        <span className="text-white/50 text-xs">
+                          Tentativa #{attemptCount} • Transcrição salva automaticamente
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Corpo do resultado */}
@@ -428,10 +667,10 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
 
                     {/* Botão tentar novamente */}
                     <motion.button 
-                      whileHover={{ scale: 1.01 }}
+                      whileHover={{ scale: 1.01, y: -1 }}
                       whileTap={{ scale: 0.99 }}
                       onClick={handleReset}
-                      className="w-full mt-5 py-4 rounded-xl bg-[#1A1A1A] text-white font-semibold hover:bg-[#2A2A2A] transition-all flex items-center justify-center gap-2"
+                      className="w-full mt-5 py-4 rounded-xl bg-[#1A1A1A] text-white font-semibold hover:bg-[#2A2A2A] transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

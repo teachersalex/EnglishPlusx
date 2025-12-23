@@ -264,6 +264,9 @@ function EpisodePage() {
             // PASSANDO O CONTROLE PARA O PLAYER
             showQuiz={showQuiz}
             setShowQuiz={setShowQuiz}
+            // [v10.3] IDs para auto-save de transcrições
+            seriesId={id}
+            episodeId={episodeId}
           />
         </motion.div>
 

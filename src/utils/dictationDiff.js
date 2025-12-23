@@ -2,30 +2,52 @@
 
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
-// Wagner-Fischer (Edit Distance)
+// Wagner-Fischer (Edit Distance) + Semantic Expansion
 // ============================================
 
-// Mapa de contrações para expansão
+// Mapa de contrações EXTENDIDO (A1-B2 coverage)
 const CONTRACTIONS = {
-  // Com apóstrofo
+  // --- Verbo TO BE / HAVE / WILL ---
   "i'm": "i am", "you're": "you are", "he's": "he is", "she's": "she is", "it's": "it is",
-  "we're": "we are", "they're": "they are", "isn't": "is not", "aren't": "are not",
-  "wasn't": "was not", "weren't": "were not", "don't": "do not", "doesn't": "does not",
-  "didn't": "did not", "won't": "will not", "can't": "can not", "cannot": "can not",
-  "couldn't": "could not", "that's": "that is", "what's": "what is", "let's": "let us",
-  "gonna": "going to", "wanna": "want to", "gotta": "got to",
-  // Sem apóstrofo (aluno digita errado)
+  "we're": "we are", "they're": "they are", 
+  "i've": "i have", "you've": "you have", "we've": "we have", "they've": "they have",
+  "i'll": "i will", "you'll": "you will", "he'll": "he will", "she'll": "she will",
+  "we'll": "we will", "they'll": "they will", "it'll": "it will",
+  "i'd": "i would", "you'd": "you would", "he'd": "he would", "she'd": "she would",
+  "we'd": "we would", "they'd": "they would",
+
+  // --- Negativas ---
+  "isn't": "is not", "aren't": "are not",
+  "wasn't": "was not", "weren't": "were not",
+  "don't": "do not", "doesn't": "does not", "didn't": "did not",
+  "haven't": "have not", "hasn't": "has not", "hadn't": "had not",
+  "won't": "will not", "shan't": "shall not",
+  "can't": "can not", "cannot": "can not", "couldn't": "could not",
+  "shouldn't": "should not", "wouldn't": "would not", "mustn't": "must not",
+  
+  // --- Questions/Relativas ---
+  "that's": "that is", "what's": "what is", "let's": "let us",
+  "who's": "who is", "where's": "where is", "there's": "there is",
+  "here's": "here is", "how's": "how is",
+  
+  // --- Informal Oral ---
+  "gonna": "going to", "wanna": "want to", "gotta": "got to", "lemme": "let me",
+
+  // --- ERROS COMUNS (Sem apóstrofo) ---
   "im": "i am", "youre": "you are", "hes": "he is", "shes": "she is",
   "isnt": "is not", "arent": "are not", "wasnt": "was not", "werent": "were not",
   "dont": "do not", "doesnt": "does not", "didnt": "did not", "wont": "will not",
-  "cant": "can not", "couldnt": "could not", "thats": "that is", "whats": "what is", "lets": "let us"
+  "cant": "can not", "couldnt": "could not", "thats": "that is", "whats": "what is", 
+  "lets": "let us", "ill": "i will", "youll": "you will", "ive": "i have"
 }
 
-// Números por extenso (0-12)
+// Números por extenso (0-20 agora, para cobrir mais casos básicos)
 const NUMBER_WORDS = {
   '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
   '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
-  '10': 'ten', '11': 'eleven', '12': 'twelve'
+  '10': 'ten', '11': 'eleven', '12': 'twelve', '13': 'thirteen',
+  '14': 'fourteen', '15': 'fifteen', '16': 'sixteen', '17': 'seventeen',
+  '18': 'eighteen', '19': 'nineteen', '20': 'twenty'
 }
 
 const NUMBER_WORD_SET = new Set(Object.values(NUMBER_WORDS))
@@ -35,17 +57,11 @@ const HEADER_TRIGGERS = new Set([
   'episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'
 ])
 
-// [NOVO] Regex para remover caracteres invisíveis (zero-width space, etc)
+// Regex para remover caracteres invisíveis (zero-width space, etc)
 const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g
 
 /**
  * Normaliza e tokeniza texto para comparação
- * - Lowercase
- * - Remove acentos
- * - Converte números para extenso
- * - Remove pontuação
- * - Expande contrações
- * - [FIX] Sanitiza espaços duplicados e caracteres invisíveis
  */
 export function normalizeAndTokenize(text) {
   if (!text) return []
@@ -59,30 +75,27 @@ export function normalizeAndTokenize(text) {
   // 3. Normaliza apóstrofos (diversos tipos para o padrão ')
   clean = clean.replace(/[’‘‛`´]/g, "'")
   
-  // 4. Converte números 0-12 para extenso
-  clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
+  // 4. Converte números para extenso
+  clean = clean.replace(/\b([0-9]|1[0-9]|20)\b/g, (match) => NUMBER_WORDS[match] || match)
   
-  // 5. [FIX CRÍTICO] Remove caracteres invisíveis (vinda de copy/paste ou mobile)
+  // 5. Remove caracteres invisíveis (vinda de copy/paste ou mobile)
   clean = clean.replace(INVISIBLE_CHARS, '')
 
   // 6. Remove pontuação (troca por espaço para separar palavras coladas)
-  // Mantém apenas letras, números e apóstrofos
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   
-  // 7. [FIX CRÍTICO] Colapsa múltiplos espaços em um só e remove pontas
-  // Transforma "hello   world" em "hello world"
+  // 7. Colapsa múltiplos espaços em um só e remove pontas
   clean = clean.replace(/\s+/g, ' ').trim()
   
-  // 8. Tokeniza (agora seguro com split simples)
+  // 8. Tokeniza e expande contrações
   let tokens = clean ? clean.split(' ') : []
   let expandedTokens = []
   
   tokens.forEach(token => {
-    // Remove apóstrofos soltos nas pontas (ex: "'cause" -> "cause")
+    // Limpa apóstrofos nas bordas
     const tokenClean = token.replace(/^'+|'+$/g, '')
     if (!tokenClean) return
 
-    // Versão sem nenhum apóstrofo para busca (ex: "dont")
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
     
     if (CONTRACTIONS[tokenClean]) {
@@ -90,7 +103,7 @@ export function normalizeAndTokenize(text) {
     } else if (CONTRACTIONS[tokenNoApostrophe]) {
       expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))
     } else {
-      expandedTokens.push(tokenNoApostrophe)
+      expandedTokens.push(tokenNoApostrophe) // Mantém apóstrofo original se não for contração conhecida
     }
   })
   
@@ -98,12 +111,7 @@ export function normalizeAndTokenize(text) {
 }
 
 /**
- * Calcula diferença entre texto original e texto do usuário
- * Usa algoritmo Wagner-Fischer (edit distance)
- * * @param {string} originalText - Transcrição correta
- * @param {string} userText - O que o aluno digitou
- * @param {string} episodeTitle - Título do episódio (para ignorar se digitado)
- * @returns {Object} { diffResult, score, correctCount, total, extraCount, missingCount, wrongCount }
+ * Calcula diferença e score justo
  */
 export function calculateDiff(originalText, userText, episodeTitle = "") {
   const origTokens = normalizeAndTokenize(originalText)
@@ -111,7 +119,7 @@ export function calculateDiff(originalText, userText, episodeTitle = "") {
   const titleTokens = normalizeAndTokenize(episodeTitle)
   let startUserIndex = 0
 
-  // 1. Ignora cabeçalhos (ex: "Episode 1", "Chapter 2")
+  // 1. Ignora cabeçalhos
   while (startUserIndex < userTokens.length) {
     const word = userTokens[startUserIndex]
     if (HEADER_TRIGGERS.has(word)) {
@@ -127,7 +135,7 @@ export function calculateDiff(originalText, userText, episodeTitle = "") {
     }
   }
 
-  // 2. Ignora título do episódio se digitado
+  // 2. Ignora título
   if (titleTokens.length > 0 && startUserIndex < userTokens.length) {
     let matchCount = 0
     for (let i = 0; i < titleTokens.length; i++) {
@@ -162,15 +170,15 @@ export function calculateDiff(originalText, userText, episodeTitle = "") {
         dp[i][j] = dp[i - 1][j - 1]
       } else {
         dp[i][j] = 1 + Math.min(
-          dp[i - 1][j],     // Deletar (faltou no user)
-          dp[i][j - 1],     // Inserir (extra no user)
-          dp[i - 1][j - 1]  // Substituir (errou)
+          dp[i - 1][j],     // Deletar
+          dp[i][j - 1],     // Inserir
+          dp[i - 1][j - 1]  // Substituir
         )
       }
     }
   }
 
-  // 4. Backtracking para gerar diff visual
+  // 4. Backtracking
   let i = N
   let j = M
   const diffReverse = []
@@ -181,23 +189,19 @@ export function calculateDiff(originalText, userText, episodeTitle = "") {
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && origTokens[i - 1] === actualUserTokens[j - 1]) {
-      // Match perfeito
       diffReverse.push({ type: 'correct', word: origTokens[i - 1] })
       correctCount++
       i--
       j--
     } else if (j > 0 && (i === 0 || dp[i][j] === dp[i][j - 1] + 1)) {
-      // Palavra extra (user adicionou)
       diffReverse.push({ type: 'extra', word: actualUserTokens[j - 1] })
       extraCount++
       j--
     } else if (i > 0 && (j === 0 || dp[i][j] === dp[i - 1][j] + 1)) {
-      // Palavra faltando (user esqueceu)
       diffReverse.push({ type: 'missing', word: origTokens[i - 1] })
       missingCount++
       i--
     } else {
-      // Palavra errada (substituição)
       diffReverse.push({ type: 'wrong', word: actualUserTokens[j - 1], expected: origTokens[i - 1] })
       wrongCount++
       i--
@@ -207,14 +211,22 @@ export function calculateDiff(originalText, userText, episodeTitle = "") {
 
   const diffResult = diffReverse.reverse()
 
-  // 5. Adiciona cabeçalhos ignorados no início (visual)
+  // 5. Adiciona cabeçalhos ignorados (visual)
   const headerDiffs = userTokens.slice(0, startUserIndex).map(w => ({ type: 'title', word: w }))
   const finalDiff = [...headerDiffs, ...diffResult]
 
-  // 6. Calcula score
-  const totalRelevant = origTokens.length + extraCount
-  const rawScore = totalRelevant > 0 ? (correctCount / totalRelevant) * 100 : 0
-  const score = Math.min(100, Math.round(rawScore))
+  // 6. CÁLCULO DE SCORE JUSTO (v2)
+  // Base: Acertos sobre o Total Original (ignora extras no denominador)
+  const totalRelevant = origTokens.length > 0 ? origTokens.length : 1
+  const accuracy = (correctCount / totalRelevant) * 100
+  
+  // Penalidade leve para extras (5% por palavra extra, máximo de zerar o score)
+  const penalty = extraCount * 5
+  
+  // Score final não pode ser menor que 0 nem maior que 100
+  const finalScore = Math.max(0, Math.min(100, accuracy - penalty))
+  
+  const score = Math.round(finalScore)
 
   return {
     diffResult: finalDiff,

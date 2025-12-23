@@ -1,3 +1,5 @@
+// src/utils/dictationDiff.js
+
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
 // Wagner-Fischer (Edit Distance)
@@ -33,6 +35,9 @@ const HEADER_TRIGGERS = new Set([
   'episode', 'chapter', 'unit', 'part', 'aula', 'licao', 'audio', 'track', 'episodio'
 ])
 
+// [NOVO] Regex para remover caracteres invisíveis (zero-width space, etc)
+const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g
+
 /**
  * Normaliza e tokeniza texto para comparação
  * - Lowercase
@@ -40,30 +45,44 @@ const HEADER_TRIGGERS = new Set([
  * - Converte números para extenso
  * - Remove pontuação
  * - Expande contrações
+ * - [FIX] Sanitiza espaços duplicados e caracteres invisíveis
  */
 export function normalizeAndTokenize(text) {
   if (!text) return []
   
-  let clean = text.toLowerCase()
+  // 1. Converte para string e lowercase
+  let clean = String(text).toLowerCase()
   
-  // Remove acentos
+  // 2. Remove acentos
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
   
-  // Normaliza apóstrofos
-  clean = clean.replace(/[''‛`´]/g, "'")
+  // 3. Normaliza apóstrofos (diversos tipos para o padrão ')
+  clean = clean.replace(/[’‘‛`´]/g, "'")
   
-  // Converte números 0-12 para extenso
+  // 4. Converte números 0-12 para extenso
   clean = clean.replace(/\b([0-9]|1[0-2])\b/g, (match) => NUMBER_WORDS[match] || match)
   
-  // Remove pontuação (mantém letras, números, apóstrofos e espaços)
+  // 5. [FIX CRÍTICO] Remove caracteres invisíveis (vinda de copy/paste ou mobile)
+  clean = clean.replace(INVISIBLE_CHARS, '')
+
+  // 6. Remove pontuação (troca por espaço para separar palavras coladas)
+  // Mantém apenas letras, números e apóstrofos
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   
-  // Tokeniza
-  let tokens = clean.split(/\s+/).filter(w => w)
+  // 7. [FIX CRÍTICO] Colapsa múltiplos espaços em um só e remove pontas
+  // Transforma "hello   world" em "hello world"
+  clean = clean.replace(/\s+/g, ' ').trim()
+  
+  // 8. Tokeniza (agora seguro com split simples)
+  let tokens = clean ? clean.split(' ') : []
   let expandedTokens = []
   
   tokens.forEach(token => {
+    // Remove apóstrofos soltos nas pontas (ex: "'cause" -> "cause")
     const tokenClean = token.replace(/^'+|'+$/g, '')
+    if (!tokenClean) return
+
+    // Versão sem nenhum apóstrofo para busca (ex: "dont")
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
     
     if (CONTRACTIONS[tokenClean]) {
@@ -81,8 +100,7 @@ export function normalizeAndTokenize(text) {
 /**
  * Calcula diferença entre texto original e texto do usuário
  * Usa algoritmo Wagner-Fischer (edit distance)
- * 
- * @param {string} originalText - Transcrição correta
+ * * @param {string} originalText - Transcrição correta
  * @param {string} userText - O que o aluno digitou
  * @param {string} episodeTitle - Título do episódio (para ignorar se digitado)
  * @returns {Object} { diffResult, score, correctCount, total, extraCount, missingCount, wrongCount }

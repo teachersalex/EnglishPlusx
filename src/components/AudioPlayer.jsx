@@ -291,7 +291,7 @@ export default function AudioPlayer({ audioUrl, coverImage, episodeTitle, initia
                         onBlur={() => setIsFocused(false)}
                         placeholder="Start typing here..."
                         className="w-full h-48 bg-transparent text-[#3D3529] placeholder-[#C4B8A5] text-lg leading-8 resize-none focus:outline-none font-light tracking-wide"
-                        style={{ caretColor: '#3af50bff' }}
+                        style={{ caretColor: '#F59E0B' }}
                       />
 
                       <div className="flex gap-3 mt-4 pt-4 border-t border-[#E8E2D9]">

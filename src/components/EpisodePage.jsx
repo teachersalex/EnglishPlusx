@@ -21,6 +21,9 @@ function EpisodePage() {
   const [audioTime, setAudioTime] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(true)
   
+  // [v10.3] Guarda se o episódio JÁ ESTAVA completo antes de começar
+  const [wasAlreadyCompleted, setWasAlreadyCompleted] = useState(false)
+  
   // Estado que controla a visibilidade do Quiz (passado para o Player)
   const [showQuiz, setShowQuiz] = useState(false)
   
@@ -41,6 +44,7 @@ function EpisodePage() {
     setLoadingProgress(true)
     setLastAnswerCorrect(false)
     setShowQuiz(false)
+    setWasAlreadyCompleted(false) // [v10.3] Reset
   }, [id, episodeId])
 
   // Carrega progresso
@@ -53,14 +57,21 @@ function EpisodePage() {
       
       const progress = await getProgress(id, episodeId)
       
-      if (progress && !progress.completed) {
-        setCurrentQuestionIndex(progress.currentQuestion || 0)
-        setScore(progress.score || 0)
-        setAudioTime(progress.audioTime || 0)
-        
-        // Se já começou, mostra o quiz aberto
-        if ((progress.currentQuestion || 0) > 0) {
-          setShowQuiz(true)
+      if (progress) {
+        // [v10.3] Guarda se já estava completo ANTES de qualquer interação
+        if (progress.completed) {
+          setWasAlreadyCompleted(true)
+          // Não restaura estado parcial — começa limpo para refazer
+        } else {
+          // Episódio incompleto: restaura onde parou
+          setCurrentQuestionIndex(progress.currentQuestion || 0)
+          setScore(progress.score || 0)
+          setAudioTime(progress.audioTime || 0)
+          
+          // Se já começou, mostra o quiz aberto
+          if ((progress.currentQuestion || 0) > 0) {
+            setShowQuiz(true)
+          }
         }
       }
       
@@ -116,12 +127,14 @@ function EpisodePage() {
   const handleTimeUpdate = (time) => {
     if (!user) return
     setAudioTime(time)
+    
+    // [v10.3] NUNCA sobrescreve completed: true com false
     saveProgress(id, episodeId, {
       audioTime: time,
       currentQuestion: currentQuestionIndex,
       questionsAnswered: currentQuestionIndex,
       score,
-      completed: false,
+      completed: wasAlreadyCompleted, // Mantém true se já estava completo
       seriesTitle: series.title,
       episodeTitle: episode.title,
       coverImage: series.coverImage
@@ -144,7 +157,7 @@ function EpisodePage() {
           currentQuestion: currentQuestionIndex,
           questionsAnswered: currentQuestionIndex + 1,
           score: newScore,
-          completed: false,
+          completed: wasAlreadyCompleted, // [v10.3] Mantém true se já estava completo
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
@@ -163,11 +176,12 @@ function EpisodePage() {
           currentQuestion: totalQuestions,
           questionsAnswered: totalQuestions,
           score,
-          completed: true,
+          completed: true, // Aqui SEMPRE true (acabou de completar)
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
         })
+        setWasAlreadyCompleted(true) // [v10.3] Atualiza o estado local também
       }
       setShowFinalModal(true)
     } else {
@@ -180,7 +194,7 @@ function EpisodePage() {
           currentQuestion: nextIndex,
           questionsAnswered: nextIndex,
           score,
-          completed: false,
+          completed: wasAlreadyCompleted, // [v10.3] Mantém true se já estava completo
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage

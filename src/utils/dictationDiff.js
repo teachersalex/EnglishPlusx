@@ -3,6 +3,7 @@
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
 // Wagner-Fischer (Edit Distance) + Semantic Expansion
+// v10.3 — Name Variations + Score Justo
 // ============================================
 
 // Mapa de contrações EXTENDIDO (A1-B2 coverage)
@@ -41,6 +42,107 @@ const CONTRACTIONS = {
   "lets": "let us", "ill": "i will", "youll": "you will", "ive": "i have"
 }
 
+// [v10.3] MAPA DE VARIAÇÕES DE NOMES
+// Nomes com grafias diferentes mas pronúncia igual → forma canônica
+// Adicione novos conforme alunos reclamarem
+const NAME_VARIATIONS = {
+  // Anna / Ana
+  'anna': 'ana',
+  'anна': 'ana',
+  
+  // Hannah / Hanna / Hana
+  'hannah': 'hana',
+  'hanna': 'hana',
+  
+  // Sarah / Sara
+  'sarah': 'sara',
+  
+  // Jon / John
+  'jon': 'john',
+  
+  // Tom / Thom
+  'thom': 'tom',
+  
+  // Matthew / Mathew
+  'mathew': 'matthew',
+  
+  // Nicholas / Nicolas
+  'nicolas': 'nicholas',
+  
+  // Michael / Micheal
+  'micheal': 'michael',
+  
+  // Steven / Stephen
+  'stephen': 'steven',
+  
+  // Jeffrey / Geoffrey
+  'geoffrey': 'jeffrey',
+  
+  // Philip / Phillip
+  'phillip': 'philip',
+  
+  // Catherine / Katherine / Kathryn
+  'catherine': 'katherine',
+  'kathryn': 'katherine',
+  
+  // Kristin / Kristen / Kirsten
+  'kristen': 'kristin',
+  'kirsten': 'kristin',
+  
+  // Brittany / Britney / Brittney
+  'britney': 'brittany',
+  'brittney': 'brittany',
+  
+  // Lindsay / Lindsey
+  'lindsey': 'lindsay',
+  
+  // Caitlin / Katelyn / Kaitlyn
+  'katelyn': 'caitlin',
+  'kaitlyn': 'caitlin',
+  
+  // Erick / Eric / Erik
+  'erick': 'eric',
+  'erik': 'eric',
+  
+  // Bryan / Brian
+  'bryan': 'brian',
+  
+  // Shawn / Sean
+  'shawn': 'sean',
+  
+  // Alan / Allan / Allen
+  'allan': 'alan',
+  'allen': 'alan',
+  
+  // Carl / Karl
+  'karl': 'carl',
+  
+  // Marc / Mark
+  'marc': 'mark',
+  
+  // Chloe / Khloe
+  'khloe': 'chloe',
+  
+  // Zach / Zack / Zac
+  'zack': 'zach',
+  'zac': 'zach',
+  
+  // Megan / Meghan
+  'meghan': 'megan',
+  
+  // Leigh / Lee
+  'leigh': 'lee',
+  
+  // Claire / Clare
+  'clare': 'claire',
+  
+  // Teresa / Theresa
+  'theresa': 'teresa',
+  
+  // Ann / Anne
+  'anne': 'ann',
+}
+
 // Números por extenso (0-20 agora, para cobrir mais casos básicos)
 const NUMBER_WORDS = {
   '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
@@ -61,6 +163,14 @@ const HEADER_TRIGGERS = new Set([
 const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g
 
 /**
+ * [v10.3] Normaliza nome para forma canônica
+ * Anna → ana, Sarah → sara, etc.
+ */
+function normalizeNameVariation(word) {
+  return NAME_VARIATIONS[word] || word
+}
+
+/**
  * Normaliza e tokeniza texto para comparação
  */
 export function normalizeAndTokenize(text) {
@@ -73,7 +183,7 @@ export function normalizeAndTokenize(text) {
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
   
   // 3. Normaliza apóstrofos (diversos tipos para o padrão ')
-  clean = clean.replace(/[’‘‛`´]/g, "'")
+  clean = clean.replace(/['`´]/g, "'")
   
   // 4. Converte números para extenso
   clean = clean.replace(/\b([0-9]|1[0-9]|20)\b/g, (match) => NUMBER_WORDS[match] || match)
@@ -103,7 +213,9 @@ export function normalizeAndTokenize(text) {
     } else if (CONTRACTIONS[tokenNoApostrophe]) {
       expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))
     } else {
-      expandedTokens.push(tokenNoApostrophe) // Mantém apóstrofo original se não for contração conhecida
+      // [v10.3] Aplica normalização de nomes ANTES de adicionar
+      const normalizedToken = normalizeNameVariation(tokenNoApostrophe)
+      expandedTokens.push(normalizedToken)
     }
   })
   

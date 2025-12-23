@@ -47,12 +47,12 @@ class TypingSoundEngine {
     source.buffer = this.audioBuffer
     
     // Variação de pitch (0.9 a 1.1) — cada tecla soa diferente
-    source.playbackRate.value = 0.9 + Math.random() * 0.2
+    source.playbackRate.value = 0.95 + Math.random() * 0.1
     
     // Gain node para volume
     const gainNode = this.audioContext.createGain()
     // Variação de volume (0.3 a 0.5) — sutil mas presente
-    gainNode.gain.value = 0.3 + Math.random() * 0.2
+    gainNode.gain.value = 0.05 + Math.random() * 0.1
     
     // Conecta
     source.connect(gainNode)

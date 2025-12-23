@@ -4,74 +4,62 @@ import { calculateDiff } from '../utils/dictationDiff'
 import { useAuth } from '../contexts/AuthContext'
 
 // ============================================
-// TYPING SOUND ENGINE (Web Audio API)
-// Som de teclado mecânico satisfatório
+// TYPING SOUND ENGINE (Real Audio File)
+// Som de teclado real com variação natural
 // ============================================
 class TypingSoundEngine {
   constructor() {
     this.audioContext = null
+    this.audioBuffer = null
     this.enabled = true
+    this.isLoading = false
   }
 
-  init() {
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+  async init() {
+    if (this.audioContext) return
+    
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    
+    // Carrega o arquivo de som uma vez
+    if (!this.audioBuffer && !this.isLoading) {
+      this.isLoading = true
+      try {
+        const response = await fetch('/audio/keySound.mp3')
+        const arrayBuffer = await response.arrayBuffer()
+        this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer)
+      } catch (err) {
+        console.warn('Não foi possível carregar som de teclado:', err)
+      }
+      this.isLoading = false
     }
   }
 
   play() {
-    if (!this.enabled || !this.audioContext) return
+    if (!this.enabled || !this.audioContext || !this.audioBuffer) return
     
     // Resume context if suspended (browser autoplay policy)
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume()
     }
 
-    const now = this.audioContext.currentTime
-
-    // Oscilador principal (click)
-    const osc = this.audioContext.createOscillator()
-    const gain = this.audioContext.createGain()
-    const filter = this.audioContext.createBiquadFilter()
-
-    // Som tipo Cherry MX - curto e satisfatório
-    osc.type = 'square'
-    osc.frequency.setValueAtTime(1800, now)
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.02)
-
-    filter.type = 'lowpass'
-    filter.frequency.setValueAtTime(3000, now)
-    filter.Q.setValueAtTime(1, now)
-
-    gain.gain.setValueAtTime(0.08, now)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
-
-    osc.connect(filter)
-    filter.connect(gain)
-    gain.connect(this.audioContext.destination)
-
-    osc.start(now)
-    osc.stop(now + 0.05)
-
-    // Segundo click sutil (bounce do keycap)
-    setTimeout(() => {
-      if (!this.enabled || !this.audioContext) return
-      
-      const osc2 = this.audioContext.createOscillator()
-      const gain2 = this.audioContext.createGain()
-      
-      osc2.type = 'sine'
-      osc2.frequency.setValueAtTime(800, this.audioContext.currentTime)
-      
-      gain2.gain.setValueAtTime(0.02, this.audioContext.currentTime)
-      gain2.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.02)
-      
-      osc2.connect(gain2)
-      gain2.connect(this.audioContext.destination)
-      
-      osc2.start()
-      osc2.stop(this.audioContext.currentTime + 0.02)
-    }, 15)
+    // Cria source node
+    const source = this.audioContext.createBufferSource()
+    source.buffer = this.audioBuffer
+    
+    // Variação de pitch (0.9 a 1.1) — cada tecla soa diferente
+    source.playbackRate.value = 0.9 + Math.random() * 0.2
+    
+    // Gain node para volume
+    const gainNode = this.audioContext.createGain()
+    // Variação de volume (0.3 a 0.5) — sutil mas presente
+    gainNode.gain.value = 0.3 + Math.random() * 0.2
+    
+    // Conecta
+    source.connect(gainNode)
+    gainNode.connect(this.audioContext.destination)
+    
+    // Toca apenas os primeiros 100ms do arquivo
+    source.start(0, 0, 0.1)
   }
 
   toggle() {
@@ -126,8 +114,8 @@ export default function AudioPlayer({
 
   // Inicializa o engine de som no primeiro interaction
   useEffect(() => {
-    const initSound = () => {
-      typingSound.init()
+    const initSound = async () => {
+      await typingSound.init()
       document.removeEventListener('click', initSound)
       document.removeEventListener('keydown', initSound)
     }

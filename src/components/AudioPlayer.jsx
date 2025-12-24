@@ -212,13 +212,10 @@ export default function AudioPlayer({
     setIsPlaying(!isPlaying)
   }
 
-  const changeSpeed = () => {
-    const currentIndex = speeds.indexOf(playbackRate)
-    const nextIndex = (currentIndex + 1) % speeds.length
-    const newRate = speeds[nextIndex]
-    setPlaybackRate(newRate)
+  const changeSpeed = (speed) => {
+    setPlaybackRate(speed)
     if (audioRef.current) {
-      audioRef.current.playbackRate = newRate
+      audioRef.current.playbackRate = speed
     }
   }
 
@@ -424,74 +421,48 @@ export default function AudioPlayer({
       </div>
 
       {/* Controles */}
-      <div className="flex items-center justify-center gap-6 mb-6">
-        {/* Velocidade */}
-        <button 
-          onClick={changeSpeed}
-          className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm font-medium hover:bg-white/20 transition min-w-[50px]"
-        >
-          {playbackRate}x
-        </button>
-
-        {/* Voltar 10s */}
-        <button onClick={() => skip(-10)} className="text-white/60 hover:text-white transition">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
-          </svg>
-        </button>
-
-        {/* Play/Pause */}
-        <button 
-          onClick={togglePlay}
-          className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center hover:bg-[#B20710] transition-colors shadow-lg"
+      <div className="flex items-center justify-center gap-4 mb-4">
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(-5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20 hover:scale-105 transition-all">-5s</motion.button>
+        
+        <motion.button 
+          whileTap={{ scale: 0.9 }} 
+          onClick={togglePlay} 
+          className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-[0_0_20px_rgba(229,9,20,0.6)] hover:scale-105 transition-all z-10"
         >
           {isPlaying ? (
-            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-            </svg>
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
           ) : (
-            <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
+            <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
           )}
-        </button>
+        </motion.button>
+        
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20 hover:scale-105 transition-all">+5s</motion.button>
+      </div>
 
-        {/* Avançar 10s */}
-        <button onClick={() => skip(10)} className="text-white/60 hover:text-white transition">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
-          </svg>
-        </button>
-
-        {/* Placeholder para simetria */}
-        <div className="w-[50px]" />
+      {/* Velocidades - todas visíveis */}
+      <div className="flex items-center justify-center gap-2 mb-6">
+        {speeds.map((speed) => (
+          <motion.button
+            key={speed}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => changeSpeed(speed)}
+            className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${playbackRate === speed ? 'bg-[#E50914] text-white shadow-[0_0_10px_rgba(229,9,20,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+          >
+            {speed}x
+          </motion.button>
+        ))}
       </div>
 
       {/* Botões de ação */}
       <div className="flex gap-3">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleOpenQuiz}
-          className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-            showQuiz 
-              ? 'bg-[#E50914] text-white' 
-              : 'bg-white/10 text-white hover:bg-white/20'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Quiz
-        </motion.button>
-
+        {/* Ditado - esquerda */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleOpenDictation}
-          className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shine-effect ${
             showDictation 
-              ? 'bg-[#E50914] text-white' 
+              ? 'bg-[#F59E0B] text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]' 
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
@@ -499,6 +470,23 @@ export default function AudioPlayer({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Ditado
+        </motion.button>
+
+        {/* Quiz - direita */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleOpenQuiz}
+          className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shine-effect ${
+            showQuiz 
+              ? 'bg-[#E50914] text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' 
+              : 'bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Quiz
         </motion.button>
       </div>
 
@@ -522,11 +510,18 @@ export default function AudioPlayer({
                 <motion.div 
                   className="relative rounded-2xl overflow-hidden"
                   animate={isFocused ? { 
-                    boxShadow: '0 0 0 2px rgba(61, 53, 41, 0.3), 0 8px 32px rgba(0,0,0,0.12)' 
+                    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.5), 0 8px 32px rgba(0,0,0,0.12)' 
                   } : {
                     boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
                   }}
                 >
+                  {/* Barra lateral estilo Moleskine - muda com foco */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-20 transition-all duration-300 ${
+                    isFocused 
+                      ? 'bg-gradient-to-b from-[#F59E0B] via-[#F59E0B] to-[#D97706] shadow-[2px_0_8px_rgba(245,158,11,0.3)]' 
+                      : 'bg-gradient-to-b from-[#E5E0D8] to-[#D4CFC5]'
+                  }`} />
+
                   {/* Header minimalista */}
                   <div className="bg-[#FAF8F5] px-5 pt-4 pb-2 flex items-center justify-between border-b border-[#E8E2D9]">
                     <div className="flex items-center gap-2">
@@ -588,6 +583,18 @@ export default function AudioPlayer({
                       }}
                       spellCheck={false}
                     />
+                    
+                    {/* Indicador de digitação ativa - pontinho piscando */}
+                    <AnimatePresence>
+                      {isTyping && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="absolute bottom-4 right-4 w-2 h-2 bg-[#F59E0B] rounded-full z-20"
+                        />
+                      )}
+                    </AnimatePresence>
                   </div>
                   
                   {/* Footer com contador e botões */}

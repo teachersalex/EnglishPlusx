@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, BADGE_DEFINITIONS } from '../contexts/AuthContext'
+import StreakOdometer from './StreakOdometer'
 
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
@@ -9,28 +10,7 @@ export default function UserStats({ user, continueEpisode }) {
   const [badges, setBadges] = useState([])
   const [showAllBadges, setShowAllBadges] = useState(false)
   const [seenBadges, setSeenBadges] = useState([])
-  const [streakJustChanged, setStreakJustChanged] = useState(false)
-  
-  // Detecta mudança no streak (compara com última vez que viu)
-  useEffect(() => {
-    if (!user?.uid) return
-    
-    const currentStreak = user.streak || 0
-    const storageKey = `lastSeenStreak_${user.uid}`
-    const lastSeen = parseInt(localStorage.getItem(storageKey) || '0', 10)
-    
-    // Se streak subiu desde a última vez que viu → anima
-    if (currentStreak > lastSeen) {
-      setStreakJustChanged(true)
-      setTimeout(() => {
-        setStreakJustChanged(false)
-        localStorage.setItem(storageKey, String(currentStreak))
-      }, 2000)
-    } else if (currentStreak !== lastSeen) {
-      // Se caiu (resetou), atualiza sem animar
-      localStorage.setItem(storageKey, String(currentStreak))
-    }
-  }, [user?.uid, user?.streak])
+  const [isAnimatingStreak, setIsAnimatingStreak] = useState(true) // Começa true!
   
   // Carrega badges vistos do localStorage
   useEffect(() => {
@@ -80,12 +60,18 @@ export default function UserStats({ user, continueEpisode }) {
   const xpInLevel = user.xp % 100
   const xpProgress = (xpInLevel / 100) * 100
 
-  // Verifica se badge é novo (não foi visto ainda)
+  // Verifica se badge é novo
   const isNewBadge = (badgeId) => !seenBadges.includes(badgeId)
 
-  // Badges para exibir (máximo 4 no preview)
+  // Badges para exibir
   const displayBadges = badges.slice(0, 4)
   const hasMoreBadges = badges.length > 4
+
+  // Callback quando streak termina de animar
+  const handleStreakAnimationComplete = () => {
+    console.log('✅ Animação do streak completa')
+    setIsAnimatingStreak(false)
+  }
 
   return (
     <div className="mb-8">
@@ -101,49 +87,14 @@ export default function UserStats({ user, continueEpisode }) {
             <p className="text-[#6B7280] text-sm">Continue sua jornada</p>
           </div>
           
-          {/* Streak com animação */}
-          <div className="text-right relative">
-            {/* Glow effect quando muda */}
-            <AnimatePresence>
-              {streakJustChanged && (
-                <motion.div
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 2, opacity: 0 }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  className="absolute inset-0 bg-[#E50914] rounded-full blur-xl"
-                />
-              )}
-            </AnimatePresence>
-            
-            <motion.div
-              animate={streakJustChanged ? {
-                scale: [1, 1.3, 1],
-                transition: { duration: 0.5, ease: "easeOut" }
-              } : {}}
-              className="relative"
-            >
-              <div className="flex items-center gap-1 justify-end">
-                {streakJustChanged && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="text-orange-500 text-sm"
-                  >
-                    🔥
-                  </motion.span>
-                )}
-                <motion.p 
-                  className={`font-bold text-lg ${streakJustChanged ? 'text-orange-500' : 'text-[#E50914]'}`}
-                  animate={streakJustChanged ? {
-                    textShadow: ['0 0 0px #E50914', '0 0 20px #E50914', '0 0 0px #E50914']
-                  } : {}}
-                  transition={{ duration: 1 }}
-                >
-                  {user.streak || 0} dias
-                </motion.p>
-              </div>
-              <p className="text-[#6B7280] text-xs">seguidos</p>
-            </motion.div>
+          {/* Streak com odômetro */}
+          <div className="text-right">
+            <StreakOdometer 
+              value={user.streak || 0}
+              isAnimating={isAnimatingStreak}
+              onAnimationComplete={handleStreakAnimationComplete}
+            />
+            <p className="text-[#6B7280] text-xs">seguidos</p>
           </div>
         </div>
 
@@ -206,7 +157,7 @@ export default function UserStats({ user, continueEpisode }) {
                       transition={{ delay: index * 0.05 }}
                       className="group relative"
                     >
-                      {/* Glow effect para badges novos */}
+                      {/* Glow para badges novos */}
                       {isNew && (
                         <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl blur opacity-50 animate-pulse" />
                       )}

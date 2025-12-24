@@ -1,40 +1,32 @@
 import { motion, AnimatePresence } from 'framer-motion'
 
-// Backdrop animado separadamente para suavidade
-const Backdrop = ({ children, onClick }) => (
-  <motion.div
-    onClick={onClick}
-    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.2 }} // Rápido
-  >
-    {children}
-  </motion.div>
-)
-
 export default function MiniModal({ isCorrect, onNext, onRetry }) {
   return (
-    <Backdrop onClick={(e) => e.stopPropagation()}>
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 10 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 10 }}
-        // Spring calibrado para ser "snappy" mas suave
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 400 }}
         onClick={(e) => e.stopPropagation()}
         className="bg-[#1A1A1A] rounded-3xl p-6 text-center max-w-xs w-full border border-white/10 shadow-2xl overflow-hidden relative"
       >
-        {/* Glow sutil no fundo para profundidade */}
+        {/* Glow sutil */}
         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 blur-[50px] opacity-20 pointer-events-none ${isCorrect ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
 
-        {/* Ícone de Feedback */}
+        {/* Ícone */}
         <div className="flex justify-center mb-4 relative z-10">
           <motion.div
-            initial={{ scale: 0.5, rotate: isCorrect ? -20 : 20 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            initial={{ scale: 0.5 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 20 }}
             className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${
               isCorrect ? 'bg-[#22C55E]/10 border-[#22C55E] text-[#22C55E]' : 'bg-[#EF4444]/10 border-[#EF4444] text-[#EF4444]'
             }`}
@@ -52,11 +44,11 @@ export default function MiniModal({ isCorrect, onNext, onRetry }) {
         </div>
         
         {/* Título */}
-        <motion.h2 className="text-2xl font-bold text-white mb-2 relative z-10">
-          {isCorrect ? 'That\'s right!' : 'Not quite...'}
-        </motion.h2>
+        <h2 className="text-2xl font-bold text-white mb-2 relative z-10">
+          {isCorrect ? "That's right!" : 'Not quite...'}
+        </h2>
 
-        {/* XP Badge (Só se acertar) - Sem animação separada para não causar lag */}
+        {/* XP Badge */}
         <div className="h-8 mb-6 flex justify-center items-center relative z-10">
           {isCorrect && (
             <div className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 px-3 py-1 rounded-full flex items-center gap-1">
@@ -66,7 +58,7 @@ export default function MiniModal({ isCorrect, onNext, onRetry }) {
           )}
         </div>
 
-        {/* Botão de Ação */}
+        {/* Botão */}
         <motion.button
           whileTap={{ scale: 0.96 }}
           onClick={isCorrect ? onNext : onRetry}
@@ -79,6 +71,6 @@ export default function MiniModal({ isCorrect, onNext, onRetry }) {
           {isCorrect ? 'Continuar' : 'Tentar Novamente'}
         </motion.button>
       </motion.div>
-    </Backdrop>
+    </motion.div>
   )
 }

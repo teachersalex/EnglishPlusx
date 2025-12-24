@@ -21,90 +21,72 @@ import {
   getDocs
 } from 'firebase/firestore'
 
+// [v2] Importa do novo sistema de badges
+import { 
+  BADGE_DEFINITIONS, 
+  checkForNewBadge, 
+  buildBadgeContext 
+} from '../utils/badgeSystem'
+
+// Re-exporta para outros componentes usarem
+export { BADGE_DEFINITIONS }
+
 const AuthContext = createContext()
 
 export function useAuth() {
   return useContext(AuthContext)
 }
 
-// ============================================
-// BADGES DEFINITIONS
-// ============================================
-const BADGE_DEFINITIONS = {
-  first_steps: {
-    id: 'first_steps',
-    name: 'First Steps',
-    icon: '🔥',
-    description: 'Completou seu primeiro episódio'
-  },
-  bookworm: {
-    id: 'bookworm',
-    name: 'Bookworm',
-    icon: '📚',
-    description: 'Completou sua primeira série'
-  },
-  perfectionist: {
-    id: 'perfectionist',
-    name: 'Perfectionist',
-    icon: '💎',
-    description: 'Conseguiu seu primeiro diamante'
-  },
-  diamond_master: {
-    id: 'diamond_master',
-    name: 'Diamond Master',
-    icon: '👑',
-    description: '3 séries com diamante'
-  },
-  sharp_ear: {
-    id: 'sharp_ear',
-    name: 'Sharp Ear',
-    icon: '🎯',
-    description: '100% em um ditado'
-  },
-  dedicated: {
-    id: 'dedicated',
-    name: 'Dedicated',
-    icon: '📝',
-    description: '7 dias seguidos'
-  },
-  rising_star: {
-    id: 'rising_star',
-    name: 'Rising Star',
-    icon: '🚀',
-    description: '500 XP total'
-  },
-  expert: {
-    id: 'expert',
-    name: 'Expert',
-    icon: '⭐',
-    description: '1000 XP total'
-  }
-}
-
-export { BADGE_DEFINITIONS }
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userData, setUserData] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // ============================================
+  // [v2] NOVO SISTEMA DE BADGES - RETORNA STRING OU NULL
+  // ============================================
+  async function checkAndAwardBadge(additionalContext = {}) {
+    if (!user) return null
+    
+    const userRef = doc(db, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
+    const currentData = userSnap.data() || {}
+    const currentBadges = currentData.badges || []
+    
+    // Constrói contexto completo para verificação
+    const badgeContext = buildBadgeContext(currentData, additionalContext)
+    
+    // Retorna NO MÁXIMO 1 badge (o mais importante)
+    const newBadge = checkForNewBadge(badgeContext, currentBadges)
+    
+    if (newBadge) {
+      // Salva no Firebase
+      const updatedBadges = [...currentBadges, newBadge]
+      await updateDoc(userRef, { badges: updatedBadges })
+      
+      // Atualiza estado local
+      setUserData(prev => ({ ...prev, badges: updatedBadges }))
+    }
+    
+    return newBadge // string ou null
+  }
+
   // Atualizar XP do usuário
   async function updateUserXP(amount) {
-    if (!user) return []
+    if (!user) return null
     const userRef = doc(db, 'users', user.uid)
     await updateDoc(userRef, { xp: increment(amount) })
     const newXP = (userData?.xp || 0) + amount
     setUserData(prev => ({ ...prev, xp: newXP }))
     
-    // Verifica badges de XP e retorna os novos
-    const newBadges = await checkAndAwardBadges({ xp: newXP })
-    return newBadges || []
+    // [v2] Retorna no máximo 1 badge
+    return await checkAndAwardBadge({ xp: newXP })
   }
 
   // Atualizar streak diário
   async function updateStreak(overrideUid = null) {
     const uid = overrideUid || user?.uid
-    if (!uid) return []
+    if (!uid) return null
     
     const userRef = doc(db, 'users', uid)
     const userSnap = await getDoc(userRef)
@@ -125,23 +107,18 @@ export function AuthProvider({ children }) {
       : null
     
     let newStreak = data?.streak || 0
-    let badgesAwarded = []
     let shouldUpdate = false
     
     if (diffDays === null || diffDays > 1) {
-      // Primeiro acesso ou pulou mais de 1 dia → reseta
       newStreak = 1
       shouldUpdate = true
     } else if (diffDays === 1) {
-      // Dia consecutivo → incrementa
       newStreak = (data?.streak || 0) + 1
       shouldUpdate = true
     } else if (diffDays === 0 && newStreak === 0) {
-      // Mesmo dia mas streak é 0 (primeiro login real) → inicia
       newStreak = 1
       shouldUpdate = true
     }
-    // Se diffDays === 0 e streak > 0, mantém
     
     if (shouldUpdate) {
       await updateDoc(userRef, { 
@@ -150,18 +127,16 @@ export function AuthProvider({ children }) {
       })
       setUserData(prev => ({ ...prev, streak: newStreak, lastActivity: now.toISOString() }))
       
-      // Verifica badge de dedicação
-      if (newStreak >= 7) {
-        badgesAwarded = await checkAndAwardBadges({ streak: newStreak })
-      }
+      // [v2] Retorna no máximo 1 badge
+      return await checkAndAwardBadge({ streak: newStreak })
     }
     
-    return badgesAwarded || []
+    return null
   }
 
   // Salvar progresso do episódio
   async function saveProgress(seriesId, episodeId, data) {
-    if (!user) return []
+    if (!user) return null
     const progressRef = doc(db, 'users', user.uid, 'progress', `${seriesId}_${episodeId}`)
     
     // Busca progresso atual para não sobrescrever dictationBestScore
@@ -172,22 +147,74 @@ export function AuthProvider({ children }) {
       seriesId,
       episodeId,
       ...data,
-      // Preserva dictationBestScore se já existir
       dictationBestScore: currentData.dictationBestScore || 0,
       lastAccess: new Date().toISOString()
     }, { merge: true })
     
-    // Verifica badges se completou e retorna os novos
+    // [v2] Atualiza contadores se completou
     if (data.completed) {
-      const newBadges = await checkAndAwardBadges({ completedEpisode: true, seriesId, episodeId })
-      return newBadges || []
+      await updateCompletionCounters(seriesId, episodeId)
+      return await checkAndAwardBadge({ 
+        completedEpisode: true, 
+        seriesId, 
+        episodeId 
+      })
     }
-    return []
+    return null
   }
 
-  // [v10.4] Salvar melhor score do ditado
-  async function saveDictationScore(seriesId, episodeId, score) {
+  // [v2] Atualiza contadores de episódios/séries completas
+  async function updateCompletionCounters(seriesId, episodeId) {
     if (!user) return
+    
+    const userRef = doc(db, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
+    const currentData = userSnap.data() || {}
+    
+    // Conta total de episódios completos
+    const progressRef = collection(db, 'users', user.uid, 'progress')
+    const progressSnap = await getDocs(progressRef)
+    const completedEpisodes = progressSnap.docs.filter(d => d.data().completed === true).length
+    
+    // Verifica se completou a série
+    let totalSeriesCompleted = currentData.totalSeriesCompleted || 0
+    try {
+      const { seriesData } = await import('../data/series')
+      const series = seriesData[seriesId]
+      if (series) {
+        const seriesProgress = progressSnap.docs
+          .filter(d => String(d.data().seriesId) === String(seriesId) && d.data().completed === true)
+        
+        if (seriesProgress.length >= series.episodes.length) {
+          // Checa se já não contamos essa série antes
+          const wasAlreadyComplete = (currentData.completedSeriesIds || []).includes(seriesId)
+          if (!wasAlreadyComplete) {
+            totalSeriesCompleted += 1
+            await updateDoc(userRef, {
+              completedSeriesIds: [...(currentData.completedSeriesIds || []), seriesId]
+            })
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao verificar série completa:', e)
+    }
+    
+    await updateDoc(userRef, {
+      totalEpisodesCompleted: completedEpisodes,
+      totalSeriesCompleted
+    })
+    
+    setUserData(prev => ({
+      ...prev,
+      totalEpisodesCompleted: completedEpisodes,
+      totalSeriesCompleted
+    }))
+  }
+
+  // [v2] Salvar melhor score do ditado
+  async function saveDictationScore(seriesId, episodeId, score) {
+    if (!user) return null
     
     const progressRef = doc(db, 'users', user.uid, 'progress', `${seriesId}_${episodeId}`)
     const currentProgress = await getDoc(progressRef)
@@ -195,7 +222,9 @@ export function AuthProvider({ children }) {
     
     // Só atualiza se for maior que o atual
     const currentBest = currentData.dictationBestScore || 0
-    if (score > currentBest) {
+    const isNewRecord = score > currentBest
+    
+    if (isNewRecord) {
       await setDoc(progressRef, {
         seriesId,
         episodeId,
@@ -204,49 +233,92 @@ export function AuthProvider({ children }) {
       }, { merge: true })
     }
     
-    // Verifica badges e coleta todos os novos
-    let allNewBadges = []
+    // [v2] Atualiza flags de perfeição e diamante
+    const userRef = doc(db, 'users', user.uid)
+    const updates = {}
     
     if (score === 100) {
-      const newBadges = await checkAndAwardBadges({ perfectDictation: true })
-      if (newBadges?.length) allNewBadges.push(...newBadges)
-    }
-    if (score >= 95) {
-      const newBadges = await checkAndAwardBadges({ checkDiamond: true, seriesId })
-      if (newBadges?.length) allNewBadges.push(...newBadges)
+      updates.hasAnyPerfectDictation = true
     }
     
-    return allNewBadges // Retorna badges conquistados para celebração
+    if (score >= 95) {
+      // Verifica se série ganhou diamante
+      await updateDiamondCount(seriesId)
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await updateDoc(userRef, updates)
+      setUserData(prev => ({ ...prev, ...updates }))
+    }
+    
+    // [v2] Retorna no máximo 1 badge
+    return await checkAndAwardBadge({ 
+      perfectDictation: score === 100,
+      checkDiamond: score >= 95,
+      seriesId
+    })
   }
 
-  // [v10.4] Buscar progresso completo de uma série (para calcular diamante)
+  // [v2] Atualiza contador de séries com diamante
+  async function updateDiamondCount(seriesId) {
+    if (!user) return
+    
+    try {
+      const { seriesData } = await import('../data/series')
+      const series = seriesData[seriesId]
+      if (!series) return
+      
+      const hasDiamond = await checkSeriesDiamond(seriesId, series.episodes.length)
+      if (!hasDiamond) return
+      
+      const userRef = doc(db, 'users', user.uid)
+      const userSnap = await getDoc(userRef)
+      const currentData = userSnap.data() || {}
+      
+      // Verifica se já contamos esse diamante
+      const diamondSeriesIds = currentData.diamondSeriesIds || []
+      if (diamondSeriesIds.includes(seriesId)) return
+      
+      const newDiamondSeriesIds = [...diamondSeriesIds, seriesId]
+      await updateDoc(userRef, {
+        diamondSeriesIds: newDiamondSeriesIds,
+        seriesWithDiamond: newDiamondSeriesIds.length
+      })
+      
+      setUserData(prev => ({
+        ...prev,
+        diamondSeriesIds: newDiamondSeriesIds,
+        seriesWithDiamond: newDiamondSeriesIds.length
+      }))
+    } catch (e) {
+      console.error('Erro ao atualizar diamantes:', e)
+    }
+  }
+
+  // Buscar progresso completo de uma série
   async function getSeriesProgress(seriesId) {
     if (!user) return []
     
     const progressRef = collection(db, 'users', user.uid, 'progress')
     const snap = await getDocs(progressRef)
     
-    // Filtra pelo seriesId
     return snap.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter(p => String(p.seriesId) === String(seriesId))
   }
 
-  // [v10.4] Verifica se série tem diamante
+  // Verifica se série tem diamante
   async function checkSeriesDiamond(seriesId, totalEpisodes) {
     if (!user) return false
     
     const progress = await getSeriesProgress(seriesId)
-    
-    // Precisa ter todos os episódios completos
     const completedEpisodes = progress.filter(p => p.completed === true)
     if (completedEpisodes.length < totalEpisodes) return false
     
-    // Todos precisam ter dictationBestScore >= 95
     return completedEpisodes.every(p => (p.dictationBestScore || 0) >= 95)
   }
 
-  // [v10.4] Buscar todas as séries com diamante
+  // Buscar todas as séries com diamante
   async function getDiamondSeries(seriesData) {
     if (!user) return {}
     
@@ -268,7 +340,7 @@ export function AuthProvider({ children }) {
     return snap.exists() ? snap.data() : null
   }
 
-  // Pegar último episódio acessado (para "Continue ouvindo")
+  // Pegar último episódio acessado
   async function getLastProgress() {
     if (!user) return null
     const progressRef = collection(db, 'users', user.uid, 'progress')
@@ -305,101 +377,6 @@ export function AuthProvider({ children }) {
       .filter(t => t.seriesId === seriesId && t.episodeId === episodeId)
   }
 
-  // ============================================
-  // BADGES SYSTEM
-  // ============================================
-  async function checkAndAwardBadges(context = {}) {
-    if (!user) return
-    
-    const userRef = doc(db, 'users', user.uid)
-    const userSnap = await getDoc(userRef)
-    const currentBadges = userSnap.data()?.badges || []
-    const newBadges = [...currentBadges]
-    
-    // First Steps - completou primeiro episódio
-    if (context.completedEpisode && !currentBadges.includes('first_steps')) {
-      newBadges.push('first_steps')
-    }
-    
-    // Sharp Ear - 100% em ditado
-    if (context.perfectDictation && !currentBadges.includes('sharp_ear')) {
-      newBadges.push('sharp_ear')
-    }
-    
-    // Rising Star - 500 XP
-    if (context.xp >= 500 && !currentBadges.includes('rising_star')) {
-      newBadges.push('rising_star')
-    }
-    
-    // Expert - 1000 XP
-    if (context.xp >= 1000 && !currentBadges.includes('expert')) {
-      newBadges.push('expert')
-    }
-    
-    // Dedicated - 7 dias streak
-    const currentStreak = context.streak || userSnap.data()?.streak || 0
-    if (currentStreak >= 7 && !currentBadges.includes('dedicated')) {
-      newBadges.push('dedicated')
-    }
-    
-    // Bookworm - completou primeira série
-    if (context.completedEpisode && context.seriesId && !currentBadges.includes('bookworm')) {
-      try {
-        const { seriesData } = await import('../data/series')
-        const series = seriesData[context.seriesId]
-        if (series) {
-          const seriesProgress = await getSeriesProgress(context.seriesId)
-          if (seriesProgress.filter(p => p.completed).length >= series.episodes.length) {
-            newBadges.push('bookworm')
-          }
-        }
-      } catch (e) {
-        console.error('Erro ao verificar bookworm:', e)
-      }
-    }
-    
-    // Perfectionist - primeiro diamante
-    if (context.checkDiamond && context.seriesId && !currentBadges.includes('perfectionist')) {
-      try {
-        const { seriesData } = await import('../data/series')
-        const series = seriesData[context.seriesId]
-        if (series) {
-          const hasDiamond = await checkSeriesDiamond(context.seriesId, series.episodes.length)
-          if (hasDiamond) {
-            newBadges.push('perfectionist')
-          }
-        }
-      } catch (e) {
-        console.error('Erro ao verificar perfectionist:', e)
-      }
-    }
-    
-    // Diamond Master - 3 séries com diamante
-    if (context.checkDiamond && !currentBadges.includes('diamond_master')) {
-      try {
-        const { seriesData } = await import('../data/series')
-        const diamonds = await getDiamondSeries(seriesData)
-        const diamondCount = Object.values(diamonds).filter(Boolean).length
-        if (diamondCount >= 3) {
-          newBadges.push('diamond_master')
-        }
-      } catch (e) {
-        console.error('Erro ao verificar diamond_master:', e)
-      }
-    }
-    
-    // Identifica badges NOVOS (para celebração)
-    const awardedNow = newBadges.filter(b => !currentBadges.includes(b))
-    
-    // Salva se tiver novos badges
-    if (awardedNow.length > 0) {
-      await updateDoc(userRef, { badges: newBadges })
-      setUserData(prev => ({ ...prev, badges: newBadges }))
-    }
-    
-    return awardedNow // Retorna array de badges recém-conquistados
-  }
-
   async function getUserBadges() {
     if (!user) return []
     const userRef = doc(db, 'users', user.uid)
@@ -419,6 +396,13 @@ export function AuthProvider({ children }) {
         xp: 0,
         streak: 0,
         badges: [],
+        // [v2] Novos campos para o sistema de badges
+        totalEpisodesCompleted: 0,
+        totalSeriesCompleted: 0,
+        seriesWithDiamond: 0,
+        hasAnyPerfectDictation: false,
+        completedSeriesIds: [],
+        diamondSeriesIds: [],
         lastActivity: new Date().toISOString(),
         createdAt: new Date().toISOString()
       }
@@ -491,13 +475,13 @@ export function AuthProvider({ children }) {
     getLastProgress,
     saveTranscription,
     getTranscriptions,
-    // [v10.4] Gamification
+    // Gamification
     saveDictationScore,
     getSeriesProgress,
     checkSeriesDiamond,
     getDiamondSeries,
     getUserBadges,
-    checkAndAwardBadges,
+    checkAndAwardBadge, // [v2] Singular agora
     loading
   }
 

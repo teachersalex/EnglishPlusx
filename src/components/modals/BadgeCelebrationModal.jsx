@@ -2,42 +2,41 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BADGE_DEFINITIONS } from '../../utils/badgeSystem'
 
-/**
- * Modal de Celebração de Badge - ÉPICO
- * 
- * Efeito "cravejada no metal":
- * 1. Tela escurece
- * 2. Badge aparece pequeno e distante
- * 3. Zoom dramático com motion blur
- * 4. IMPACTO - shake + sparks
- * 5. Brilho se espalha
- * 6. Texto aparece
- */
 export default function BadgeCelebrationModal({ badge, onComplete }) {
   const [phase, setPhase] = useState(0)
-  // 0 = entrada, 1 = zoom, 2 = impacto, 3 = brilho, 4 = texto
   
   const badgeData = badge ? BADGE_DEFINITIONS[badge] : null
   
   useEffect(() => {
-    if (!badge) return
-    
-    // Timeline da animação
+    if (!badge || !badgeData) return
     setPhase(0)
     
+    // Cronograma da animação
     const timers = [
-      setTimeout(() => setPhase(1), 100),   // Zoom
-      setTimeout(() => setPhase(2), 600),   // Impacto
-      setTimeout(() => setPhase(3), 800),   // Brilho
-      setTimeout(() => setPhase(4), 1200),  // Texto
+      setTimeout(() => setPhase(1), 100),
+      setTimeout(() => {
+        setPhase(2) 
+        playSound(badgeData.isEpic)
+      }, 600),
+      setTimeout(() => setPhase(3), 800),
+      setTimeout(() => setPhase(4), 1200),
     ]
-    
     return () => timers.forEach(clearTimeout)
-  }, [badge])
+  }, [badge, badgeData])
+  
+  const playSound = (isEpic) => {
+    try {
+      const file = isEpic ? '/audio/platinum_unlock.mp3' : '/audio/trophy_unlock.mp3'
+      const audio = new Audio(file)
+      audio.volume = 0.6
+      audio.play().catch(e => console.log("Audio autoplay blocked", e))
+    } catch (e) {
+      console.warn("Erro ao tocar som", e)
+    }
+  }
   
   if (!badgeData) return null
   
-  // Sparks para o impacto
   const sparks = Array.from({ length: 12 }, (_, i) => ({
     id: i,
     angle: (i * 30) * (Math.PI / 180),
@@ -54,203 +53,130 @@ export default function BadgeCelebrationModal({ badge, onComplete }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-[100] flex items-center justify-center"
           onClick={phase >= 4 ? onComplete : undefined}
         >
-          {/* Backdrop - mais escuro e dramático */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/90"
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
           />
           
-          {/* Textura metálica de fundo */}
           <div 
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `
-                radial-gradient(circle at 50% 50%, #333 0%, #111 100%),
-                repeating-linear-gradient(
-                  0deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(255,255,255,0.03) 2px,
-                  rgba(255,255,255,0.03) 4px
-                )
-              `
-            }}
+            className="absolute inset-0 opacity-20 pointer-events-none"
+            style={{ backgroundImage: `radial-gradient(circle at 50% 50%, #333 0%, #000 100%)` }}
           />
           
-          {/* Container central com shake no impacto */}
           <motion.div
             animate={phase === 2 ? {
               x: [0, -8, 8, -4, 4, 0],
               y: [0, 4, -4, 2, -2, 0],
             } : {}}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative flex flex-col items-center"
+            className="relative flex flex-col items-center pointer-events-auto"
           >
-            {/* Badge container */}
+            {/* ÍCONE / TROFÉU */}
             <div className="relative">
-              {/* Glow de fundo (aparece na fase 3) */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
-                animate={phase >= 3 ? { 
-                  opacity: [0, 0.8, 0.4],
-                  scale: [0.5, 1.5, 1.2]
-                } : {}}
+                animate={phase >= 3 ? { opacity: [0, 0.8, 0.4], scale: [0.5, 1.5, 1.2] } : {}}
                 transition={{ duration: 0.6 }}
-                className="absolute inset-0 -m-16"
+                className="absolute inset-0 -m-16 rounded-full"
                 style={{
-                  background: 'radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, transparent 70%)',
+                  background: badgeData.isEpic 
+                    ? 'radial-gradient(circle, rgba(56, 189, 248, 0.5) 0%, transparent 70%)' 
+                    : 'radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, transparent 70%)',
                   filter: 'blur(20px)'
                 }}
               />
               
-              {/* Círculo metálico */}
               <motion.div
                 initial={{ scale: 0.1, opacity: 0, rotateY: 180 }}
-                animate={
-                  phase >= 2 
-                    ? { scale: 1, opacity: 1, rotateY: 0 }
-                    : phase >= 1 
-                      ? { scale: 0.8, opacity: 0.8, rotateY: 90 }
-                      : { scale: 0.1, opacity: 0, rotateY: 180 }
-                }
-                transition={{ 
-                  type: "spring",
-                  damping: phase >= 2 ? 8 : 20,
-                  stiffness: phase >= 2 ? 200 : 100,
-                  duration: 0.5
-                }}
+                animate={phase >= 2 ? { scale: 1, opacity: 1, rotateY: 0 } : phase >= 1 ? { scale: 0.8, opacity: 0.8, rotateY: 90 } : { scale: 0.1, opacity: 0, rotateY: 180 }}
+                transition={{ type: "spring", damping: phase >= 2 ? 12 : 20, stiffness: phase >= 2 ? 200 : 100, duration: 0.5 }}
                 className="relative w-32 h-32"
               >
-                {/* Borda metálica externa */}
+                {/* Borda Metálica */}
                 <div 
-                  className="absolute inset-0 rounded-full"
+                  className="absolute inset-0 rounded-xl transform rotate-3"
                   style={{
-                    background: 'linear-gradient(145deg, #4a4a4a 0%, #1a1a1a 50%, #333 100%)',
-                    boxShadow: phase >= 2 
-                      ? '0 0 40px rgba(251, 191, 36, 0.5), inset 0 2px 4px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.5)'
-                      : 'inset 0 2px 4px rgba(255,255,255,0.1), inset 0 -2px 4px rgba(0,0,0,0.5)'
+                    background: badgeData.isEpic
+                      ? 'linear-gradient(145deg, #e0f2fe 0%, #38bdf8 50%, #0284c7 100%)'
+                      : 'linear-gradient(145deg, #fef3c7 0%, #f59e0b 50%, #b45309 100%)',
+                    boxShadow: phase >= 2 ? '0 0 40px rgba(255,255,255,0.3), inset 0 2px 4px rgba(255,255,255,0.5)' : 'none'
                   }}
                 />
                 
-                {/* Anel interno */}
-                <div 
-                  className="absolute inset-2 rounded-full"
-                  style={{
-                    background: 'linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%)',
-                    boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.5)'
-                  }}
-                />
-                
-                {/* Centro com ícone */}
-                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-[#1f1f1f] to-[#0a0a0a] flex items-center justify-center">
+                {/* CORREÇÃO DO FANTASMA: overflow-hidden adicionado aqui */}
+                <div className="absolute inset-1 bg-[#1A1A1A] rounded-lg flex items-center justify-center border border-white/10 overflow-hidden relative">
+                   
+                   {/* Brilho movido para DENTRO do overflow-hidden */}
+                   <motion.div
+                    initial={{ x: '-100%', opacity: 0 }}
+                    animate={phase >= 3 ? { x: '200%', opacity: 1 } : {}}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12 z-20 pointer-events-none"
+                  />
+
                   <motion.span 
-                    className="text-5xl"
+                    className="text-6xl filter drop-shadow-lg relative z-10"
                     animate={phase >= 3 ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ duration: 0.3 }}
                   >
                     {badgeData.icon}
                   </motion.span>
                 </div>
-                
-                {/* Brilho metálico */}
-                <motion.div
-                  initial={{ opacity: 0, rotate: 0 }}
-                  animate={phase >= 3 ? { 
-                    opacity: [0, 1, 0],
-                    rotate: 180
-                  } : {}}
-                  transition={{ duration: 0.8 }}
-                  className="absolute inset-0 rounded-full overflow-hidden"
-                >
-                  <div 
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%)'
-                    }}
-                  />
-                </motion.div>
               </motion.div>
               
-              {/* Sparks no impacto */}
               <AnimatePresence>
                 {phase === 2 && sparks.map((spark) => (
                   <motion.div
                     key={spark.id}
-                    initial={{ 
-                      opacity: 1,
-                      scale: 1,
-                      x: 0,
-                      y: 0
-                    }}
-                    animate={{ 
-                      opacity: 0,
-                      scale: 0,
-                      x: Math.cos(spark.angle) * spark.distance,
-                      y: Math.sin(spark.angle) * spark.distance
-                    }}
-                    transition={{ 
-                      duration: 0.5,
-                      delay: spark.delay,
-                      ease: "easeOut"
-                    }}
-                    className="absolute left-1/2 top-1/2 rounded-full bg-yellow-400"
-                    style={{
-                      width: spark.size,
-                      height: spark.size,
-                      boxShadow: '0 0 6px rgba(251, 191, 36, 0.8)'
-                    }}
+                    initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+                    animate={{ opacity: 0, scale: 0, x: Math.cos(spark.angle) * spark.distance, y: Math.sin(spark.angle) * spark.distance }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className={`absolute left-1/2 top-1/2 rounded-full ${badgeData.isEpic ? 'bg-cyan-300' : 'bg-yellow-400'}`}
+                    style={{ width: spark.size, height: spark.size }}
                   />
                 ))}
               </AnimatePresence>
             </div>
             
-            {/* Texto */}
+            {/* TEXTOS */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={phase >= 4 ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4 }}
-              className="mt-8 text-center"
+              className="mt-10 text-center px-4"
             >
               <motion.p
-                initial={{ opacity: 0, letterSpacing: '0.5em' }}
-                animate={phase >= 4 ? { opacity: 1, letterSpacing: '0.3em' } : {}}
-                transition={{ duration: 0.5 }}
-                className="text-yellow-500 text-xs font-bold uppercase tracking-widest mb-2"
+                initial={{ letterSpacing: '0.1em' }}
+                animate={{ letterSpacing: '0.3em' }}
+                className={`text-xs font-bold uppercase tracking-widest mb-3 ${badgeData.isEpic ? 'text-cyan-400' : 'text-yellow-500'}`}
               >
                 Conquista Desbloqueada
               </motion.p>
               
-              <motion.h2
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={phase >= 4 ? { opacity: 1, scale: 1 } : {}}
-                transition={{ duration: 0.3, delay: 0.1 }}
-                className="text-white text-2xl font-bold mb-2"
-              >
+              <h2 className="text-white text-3xl font-bold mb-3 tracking-tight">
                 {badgeData.name}
-              </motion.h2>
+              </h2>
               
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={phase >= 4 ? { opacity: 0.6 } : {}}
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="text-white text-sm max-w-xs"
-              >
+              <p className="text-white/70 text-base max-w-sm mx-auto leading-relaxed">
                 {badgeData.description}
-              </motion.p>
+              </p>
             </motion.div>
             
-            {/* Botão */}
             <motion.button
               initial={{ opacity: 0, y: 10 }}
               animate={phase >= 4 ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.3, delay: 0.4 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onComplete}
-              className="mt-8 px-12 py-4 rounded-xl bg-gradient-to-r from-yellow-600 to-yellow-500 text-white font-bold text-lg shadow-lg shadow-yellow-500/20"
+              className={`mt-10 px-10 py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${
+                badgeData.isEpic
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-cyan-500/30'
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
             >
               Continuar
             </motion.button>

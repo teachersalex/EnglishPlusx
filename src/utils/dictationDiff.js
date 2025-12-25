@@ -3,7 +3,7 @@
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
 // Wagner-Fischer (Edit Distance) + Semantic Expansion
-// v10.4 — Possessives + Unicode Apostrophes
+// v10.6 — Synonyms (OK/Okay) + Grammar Strictness + Full Lists
 // ============================================
 
 // Mapa de contrações EXTENDIDO (A1-B2 coverage)
@@ -42,9 +42,27 @@ const CONTRACTIONS = {
   "lets": "let us", "ill": "i will", "youll": "you will", "ive": "i have"
 }
 
-// [v10.3] MAPA DE VARIAÇÕES DE NOMES
-// Nomes com grafias diferentes mas pronúncia igual → forma canônica
-// Adicione novos conforme alunos reclamarem
+// [v10.6] SINÔNIMOS ACEITÁVEIS (NOVO!)
+// Resolve o problema: "ok" (user) vs "okay" (original)
+const SYNONYMS = {
+  'ok': 'okay',
+  'k': 'okay',
+  'okei': 'okay',
+  'yeah': 'yes',
+  'yep': 'yes',
+  'yup': 'yes',
+  'nope': 'no',
+  'nah': 'no',
+  'please': 'pls',
+  'pls': 'please',
+  'cos': 'because',
+  'cause': 'because',
+  'cuz': 'because',
+  'till': 'until',
+  'til': 'until'
+}
+
+// [v10.3] MAPA DE VARIAÇÕES DE NOMES (Mantido integralmente)
 const NAME_VARIATIONS = {
   // Anna / Ana
   'anna': 'ana',
@@ -163,11 +181,16 @@ const HEADER_TRIGGERS = new Set([
 const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g
 
 /**
- * [v10.3] Normaliza nome para forma canônica
- * Anna → ana, Sarah → sara, etc.
+ * [v10.6] Normaliza palavra (Nome ou Sinônimo)
+ * Anna → ana, OK → okay, etc.
  */
-function normalizeNameVariation(word) {
-  return NAME_VARIATIONS[word] || word
+function normalizeWordVariation(word) {
+  // 1. Checa Nomes
+  if (NAME_VARIATIONS[word]) return NAME_VARIATIONS[word]
+  // 2. Checa Sinônimos (NOVO)
+  if (SYNONYMS[word]) return SYNONYMS[word]
+  
+  return word
 }
 
 /**
@@ -192,6 +215,7 @@ export function normalizeAndTokenize(text) {
   clean = clean.replace(INVISIBLE_CHARS, '')
 
   // 6. Remove pontuação (troca por espaço para separar palavras coladas)
+  // [v10.6] Removemos pontuações como ? ! . , para garantir que "okay." = "ok"
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   
   // 7. Colapsa múltiplos espaços em um só e remove pontas
@@ -208,24 +232,23 @@ export function normalizeAndTokenize(text) {
 
     const tokenNoApostrophe = tokenClean.replace(/'/g, '')
     
-    // [v10.4] Verifica se é possessivo ('s no final) antes de expandir contrações
-    // Possessivo: husband's, David's, Lisa's → husbands, davids, lisas
-    // Não é contração como "he's" (he is) ou "it's" (it is)
+    // Possessivo ('s no final)
     const isPossessive = tokenClean.endsWith("'s") && !CONTRACTIONS[tokenClean]
     
     if (isPossessive) {
-      // Remove o 's e adiciona apenas a palavra base + s
+      // Remove o 's e adiciona apenas a palavra base normalizada
       const baseWord = tokenNoApostrophe // husband's → husbands
-      const normalizedToken = normalizeNameVariation(baseWord)
-      expandedTokens.push(normalizedToken)
+      expandedTokens.push(normalizeWordVariation(baseWord))
     } else if (CONTRACTIONS[tokenClean]) {
-      expandedTokens.push(...CONTRACTIONS[tokenClean].split(' '))
+      // Expande contração e normaliza as partes
+      const parts = CONTRACTIONS[tokenClean].split(' ')
+      parts.forEach(p => expandedTokens.push(normalizeWordVariation(p)))
     } else if (CONTRACTIONS[tokenNoApostrophe]) {
-      expandedTokens.push(...CONTRACTIONS[tokenNoApostrophe].split(' '))
+      const parts = CONTRACTIONS[tokenNoApostrophe].split(' ')
+      parts.forEach(p => expandedTokens.push(normalizeWordVariation(p)))
     } else {
-      // [v10.3] Aplica normalização de nomes ANTES de adicionar
-      const normalizedToken = normalizeNameVariation(tokenNoApostrophe)
-      expandedTokens.push(normalizedToken)
+      // Palavra comum: aplica normalização de nome/sinônimo
+      expandedTokens.push(normalizeWordVariation(tokenNoApostrophe))
     }
   })
   

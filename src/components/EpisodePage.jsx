@@ -5,6 +5,7 @@ import { seriesData } from '../data/series'
 import { useAuth } from '../contexts/AuthContext'
 import MiniModal from './modals/MiniModal'
 import FinalModal from './modals/FinalModal'
+import BadgeCelebrationModal from './modals/BadgeCelebrationModal'
 import Header from './Header'
 import AudioPlayer from './AudioPlayer'
 
@@ -21,19 +22,42 @@ function EpisodePage() {
   const [audioTime, setAudioTime] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(true)
   
-  // [v10.3] Guarda se o episódio JÁ ESTAVA completo antes de começar
-  const [wasAlreadyCompleted, setWasAlreadyCompleted] = useState(false)
+  // Trava para evitar navegação durante save
+  const [isSaving, setIsSaving] = useState(false)
   
-  // Estado que controla a visibilidade do Quiz (passado para o Player)
+  const [wasAlreadyCompleted, setWasAlreadyCompleted] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
   
-  const { user, updateUserXP, saveProgress, getProgress } = useAuth()
+  const [badgeQueue, setBadgeQueue] = useState([]) 
+  const [activeBadge, setActiveBadge] = useState(null)
+  const [pendingNavigation, setPendingNavigation] = useState(null)
+  
+  const { user, updateUserXP, saveProgress, getProgress, updateStreak } = useAuth()
 
   const series = seriesData[id]
   const episode = series?.episodes.find(ep => ep.id === parseInt(episodeId))
   const totalQuestions = episode?.questions.length || 0
 
-  // RESETA TUDO quando muda de episódio
+  useEffect(() => {
+    if (!activeBadge && !showMiniModal && !showFinalModal && badgeQueue.length > 0) {
+      const [nextBadge, ...rest] = badgeQueue
+      setActiveBadge(nextBadge)
+      setBadgeQueue(rest)
+    }
+  }, [activeBadge, showMiniModal, showFinalModal, badgeQueue])
+
+  useEffect(() => {
+    if (pendingNavigation && !isSaving && badgeQueue.length === 0 && !activeBadge) {
+      navigate(pendingNavigation)
+    }
+  }, [pendingNavigation, isSaving, badgeQueue, activeBadge, navigate])
+
+  const queueBadge = (badge) => {
+    if (badge && typeof badge === 'string') {
+      setBadgeQueue(prev => [...prev, badge])
+    }
+  }
+
   useEffect(() => {
     setCurrentQuestionIndex(0)
     setSelectedAnswer(null)
@@ -44,10 +68,13 @@ function EpisodePage() {
     setLoadingProgress(true)
     setLastAnswerCorrect(false)
     setShowQuiz(false)
-    setWasAlreadyCompleted(false) // [v10.3] Reset
+    setWasAlreadyCompleted(false)
+    setBadgeQueue([])
+    setActiveBadge(null)
+    setPendingNavigation(null)
+    setIsSaving(false)
   }, [id, episodeId])
 
-  // Carrega progresso
   useEffect(() => {
     async function loadProgress() {
       if (!user || !episode) {
@@ -58,23 +85,17 @@ function EpisodePage() {
       const progress = await getProgress(id, episodeId)
       
       if (progress) {
-        // [v10.3] Guarda se já estava completo ANTES de qualquer interação
         if (progress.completed) {
           setWasAlreadyCompleted(true)
-          // Não restaura estado parcial — começa limpo para refazer
         } else {
-          // Episódio incompleto: restaura onde parou
           setCurrentQuestionIndex(progress.currentQuestion || 0)
           setScore(progress.score || 0)
           setAudioTime(progress.audioTime || 0)
-          
-          // Se já começou, mostra o quiz aberto
           if ((progress.currentQuestion || 0) > 0) {
             setShowQuiz(true)
           }
         }
       }
-      
       setLoadingProgress(false)
     }
     
@@ -127,14 +148,12 @@ function EpisodePage() {
   const handleTimeUpdate = (time) => {
     if (!user) return
     setAudioTime(time)
-    
-    // [v10.3] NUNCA sobrescreve completed: true com false
     saveProgress(id, episodeId, {
       audioTime: time,
       currentQuestion: currentQuestionIndex,
       questionsAnswered: currentQuestionIndex,
       score,
-      completed: wasAlreadyCompleted, // Mantém true se já estava completo
+      completed: wasAlreadyCompleted,
       seriesTitle: series.title,
       episodeTitle: episode.title,
       coverImage: series.coverImage
@@ -151,37 +170,51 @@ function EpisodePage() {
       const newScore = score + 1
       setScore(newScore)
       if (user) {
-        updateUserXP(10)
+        updateUserXP(10).then(badgeXP => { if (badgeXP) queueBadge(badgeXP) })
+
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: currentQuestionIndex,
           questionsAnswered: currentQuestionIndex + 1,
           score: newScore,
-          completed: wasAlreadyCompleted, // [v10.3] Mantém true se já estava completo
+          completed: wasAlreadyCompleted,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
         })
       }
     }
+
+    if (user) {
+      updateStreak().then(badgeStreak => { if (badgeStreak) queueBadge(badgeStreak) })
+    }
+
     setShowMiniModal(true)
   }
 
-  const handleNextQuestion = async () => {
+  const handleNextQuestion = () => {
     setShowMiniModal(false)
+    
     if (isLastQuestion) {
       if (user) {
+        // Marca salvamento
+        setIsSaving(true)
+        
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: totalQuestions,
           questionsAnswered: totalQuestions,
           score,
-          completed: true, // Aqui SEMPRE true (acabou de completar)
+          completed: true,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
+        }).then(badgeCompletion => {
+          if (badgeCompletion) queueBadge(badgeCompletion)
+          setIsSaving(false)
         })
-        setWasAlreadyCompleted(true) // [v10.3] Atualiza o estado local também
+        
+        setWasAlreadyCompleted(true)
       }
       setShowFinalModal(true)
     } else {
@@ -194,7 +227,7 @@ function EpisodePage() {
           currentQuestion: nextIndex,
           questionsAnswered: nextIndex,
           score,
-          completed: wasAlreadyCompleted, // [v10.3] Mantém true se já estava completo
+          completed: wasAlreadyCompleted,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
@@ -207,11 +240,18 @@ function EpisodePage() {
   const isLastEpisode = !nextEpisode
 
   const handleNextEpisode = () => {
-    if (isLastEpisode) {
-      navigate('/')
+    const targetUrl = isLastEpisode ? '/' : `/series/${id}/episode/${nextEpisode.id}`
+    setShowFinalModal(false)
+    
+    if (isSaving || badgeQueue.length > 0 || activeBadge) {
+      setPendingNavigation(targetUrl)
     } else {
-      navigate(`/series/${id}/episode/${nextEpisode.id}`)
+      navigate(targetUrl)
     }
+  }
+
+  const handleBadgeComplete = () => {
+    setActiveBadge(null)
   }
 
   return (
@@ -238,8 +278,10 @@ function EpisodePage() {
               setCurrentQuestionIndex(0)
               setSelectedAnswer(null)
               setScore(0)
+              setPendingNavigation(null)
             }}
             isLastEpisode={isLastEpisode}
+            isSaving={isSaving} // [NOVO] Passa o estado de salvamento
           />
         )}
       </AnimatePresence>
@@ -247,7 +289,6 @@ function EpisodePage() {
       <Header showBack backTo={`/series/${id}`} />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* Player de áudio (Agora recebe o controle do quiz) */}
         <motion.div
           key={`${id}-${episodeId}`}
           initial={{ opacity: 0, y: 20 }}
@@ -261,16 +302,13 @@ function EpisodePage() {
             initialTime={audioTime}
             onTimeUpdate={handleTimeUpdate}
             transcript={episode.text}
-            // PASSANDO O CONTROLE PARA O PLAYER
             showQuiz={showQuiz}
             setShowQuiz={setShowQuiz}
-            // [v10.3] IDs para auto-save de transcrições
             seriesId={id}
             episodeId={episodeId}
           />
         </motion.div>
 
-        {/* ÁREA EXPANSÍVEL DO QUIZ (O botão sumiu daqui) */}
         <AnimatePresence>
           {showQuiz && (
             <motion.div
@@ -279,7 +317,6 @@ function EpisodePage() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              {/* Progresso do Quiz */}
               <div className="mb-4 flex items-center gap-2 px-2">
                 <span className="text-[#6B7280] text-sm">Pergunta {currentQuestionIndex + 1} de {totalQuestions}</span>
                 <div className="flex-1 h-2 bg-white rounded-full overflow-hidden shadow-sm">
@@ -293,7 +330,6 @@ function EpisodePage() {
                 </div>
               </div>
 
-              {/* Quiz Card */}
               <div className="bg-white rounded-2xl p-6 shadow-lg border-b-4 border-[#000000]/5 mb-8">
                 <h2 className="text-[#E50914] text-sm font-bold mb-2">QUIZ</h2>
                 <h3 className="text-[#1A1A1A] text-xl font-bold mb-6">{currentQuestion.question}</h3>
@@ -345,6 +381,11 @@ function EpisodePage() {
           )}
         </AnimatePresence>
       </main>
+
+      <BadgeCelebrationModal 
+        badge={activeBadge} 
+        onComplete={handleBadgeComplete} 
+      />
     </div>
   )
 }

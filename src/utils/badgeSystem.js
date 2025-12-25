@@ -1,195 +1,145 @@
 /**
- * SISTEMA DE BADGES v2 - CADA UM DEVE SER MERECIDO
- * 
- * REGRAS:
- * 1. NUNCA dar mais de 1 badge por ação
- * 2. Prioridade definida - se conquistar múltiplos, só o mais importante aparece
- * 3. Os outros ficam em fila para próximas ações
- * 4. Cada badge deve ser DIFÍCIL de conseguir
+ * SISTEMA DE BADGES v7 - PLAYSTATION PLATINUM STYLE
+ * * Filosofia: "Menos é Mais". Apenas conquistas que dão orgulho.
+ * Som: Badges com 'isEpic: true' tocam o som de Platina.
  */
 
 // ============================================
-// DEFINIÇÕES DOS BADGES
+// DEFINIÇÕES (O MANUAL DO JOGO)
 // ============================================
 export const BADGE_DEFINITIONS = {
-  // === PROGRESSO (ordem de dificuldade) ===
-  first_steps: {
-    id: 'first_steps',
-    name: 'Primeiro Passo',
-    icon: '🌱',
-    description: 'Completou seu primeiro episódio',
-    priority: 1, // Menor = mais importante (aparece primeiro)
-    category: 'progress'
-  },
-  
-  bookworm: {
-    id: 'bookworm',
-    name: 'Leitor',
-    icon: '📖',
-    description: 'Completou sua primeira série inteira',
-    priority: 2,
-    category: 'progress'
-  },
-  
-  scholar: {
-    id: 'scholar',
-    name: 'Estudioso',
-    icon: '📚',
-    description: 'Completou 5 séries',
-    priority: 3,
-    category: 'progress'
-  },
-
-  // === EXCELÊNCIA ===
+  // === 1. O GATILHO (Início Imediato) ===
   sharp_ear: {
     id: 'sharp_ear',
     name: 'Ouvido Afiado',
-    icon: '🎯',
-    description: '100% em um ditado',
+    icon: '👂',
+    description: 'Seu primeiro 100% em um ditado. Você ouve cada detalhe!',
     priority: 10,
-    category: 'excellence'
+    category: 'excellence',
+    isEpic: true // 🔊 SOM DE PLATINA
   },
   
-  diamond_collector: {
-    id: 'diamond_collector',
-    name: 'Colecionador',
-    icon: '💎',
-    description: 'Diamante em 3 séries diferentes',
-    priority: 11,
-    category: 'excellence'
-  },
-  
-  perfectionist: {
-    id: 'perfectionist',
-    name: 'Perfeccionista',
-    icon: '👑',
-    description: 'Diamante em 5 séries',
-    priority: 12,
-    category: 'excellence'
-  },
-
-  // === CONSISTÊNCIA ===
   on_fire: {
     id: 'on_fire',
     name: 'Em Chamas',
     icon: '🔥',
-    description: '7 dias seguidos',
-    priority: 20,
-    category: 'consistency'
-  },
-  
-  dedicated: {
-    id: 'dedicated',
-    name: 'Dedicado',
-    icon: '💪',
-    description: '30 dias seguidos',
-    priority: 21,
-    category: 'consistency'
-  },
-  
-  unstoppable: {
-    id: 'unstoppable',
-    name: 'Imparável',
-    icon: '⚡',
-    description: '100 dias seguidos',
-    priority: 22,
-    category: 'consistency'
+    description: '3 dias seguidos. O hábito começou.',
+    priority: 9,
+    category: 'consistency',
+    isEpic: false // 🔉 Som Normal
   },
 
-  // === MILESTONES ===
+  // === 2. A CONFIRMAÇÃO (Primeiras Séries) ===
+  diamond_hunter: {
+    id: 'diamond_hunter',
+    name: 'Caçador de Diamantes',
+    icon: '💎',
+    description: 'Sua Primeira Série Diamante (Média > 95%).',
+    priority: 8,
+    category: 'excellence',
+    isEpic: true // 🔊 SOM DE PLATINA
+  },
+
   rising_star: {
     id: 'rising_star',
-    name: 'Estrela Nascente',
+    name: 'Estrela',
     icon: '🚀',
-    description: '1000 XP total',
-    priority: 30,
-    category: 'milestone'
+    description: '500 XP acumulados. Você está decolando.',
+    priority: 7,
+    category: 'milestone',
+    isEpic: false // 🔉 Som Normal
   },
-  
-  expert: {
-    id: 'expert',
-    name: 'Expert',
-    icon: '⭐',
-    description: '5000 XP total',
-    priority: 31,
-    category: 'milestone'
+
+  // === 3. A ELITE (Longo Prazo) ===
+  precision_master: {
+    id: 'precision_master',
+    name: 'Mestre da Precisão',
+    icon: '🎯',
+    description: '3 Séries Diamante. Consistência absurda.',
+    priority: 5,
+    category: 'excellence',
+    isEpic: true // 🔊 SOM DE PLATINA
   },
-  
-  legend: {
-    id: 'legend',
-    name: 'Lenda',
-    icon: '🏆',
-    description: '10000 XP total',
-    priority: 32,
-    category: 'milestone'
+
+  scholar: {
+    id: 'scholar',
+    name: 'Acadêmico',
+    icon: '📚',
+    description: 'Completou 5 Séries inteiras (Ouro ou Diamante).',
+    priority: 4,
+    category: 'progress',
+    isEpic: false // 🔉 Som Normal
+  },
+
+  collector: { // O antigo "Legend"
+    id: 'collector',
+    name: 'Colecionador',
+    icon: '👑',
+    description: '5 Séries Diamante. Você zerou o jogo atual.',
+    priority: 1, // Prioridade MÁXIMA
+    category: 'excellence',
+    isEpic: true // 🔊 SOM DE PLATINA
   }
 }
 
 // ============================================
-// CONDIÇÕES PARA CADA BADGE
+// CONDIÇÕES (AS REGRAS)
 // ============================================
 export const BADGE_CONDITIONS = {
-  // Progresso
-  first_steps: (ctx) => ctx.totalEpisodesCompleted >= 1,
-  bookworm: (ctx) => ctx.totalSeriesCompleted >= 1,
-  scholar: (ctx) => ctx.totalSeriesCompleted >= 5,
-  
-  // Excelência
+  // Início
   sharp_ear: (ctx) => ctx.hasAnyPerfectDictation === true,
-  diamond_collector: (ctx) => ctx.seriesWithDiamond >= 3,
-  perfectionist: (ctx) => ctx.seriesWithDiamond >= 5,
+  on_fire: (ctx) => ctx.streak >= 3,
   
-  // Consistência
-  on_fire: (ctx) => ctx.streak >= 7,
-  dedicated: (ctx) => ctx.streak >= 30,
-  unstoppable: (ctx) => ctx.streak >= 100,
-  
-  // Milestones
-  rising_star: (ctx) => ctx.xp >= 1000,
-  expert: (ctx) => ctx.xp >= 5000,
-  legend: (ctx) => ctx.xp >= 10000,
+  // Intermediário
+  diamond_hunter: (ctx) => ctx.seriesWithDiamond >= 1,
+  rising_star: (ctx) => ctx.xp >= 500,
+
+  // Elite
+  precision_master: (ctx) => ctx.seriesWithDiamond >= 3,
+  scholar: (ctx) => ctx.totalSeriesCompleted >= 5,
+  collector: (ctx) => ctx.seriesWithDiamond >= 5
 }
 
 // ============================================
-// FUNÇÃO PRINCIPAL - RETORNA NO MÁXIMO 1 BADGE
+// LÓGICA DE VERIFICAÇÃO
 // ============================================
 export function checkForNewBadge(context, currentBadges = []) {
   const newBadges = []
   
-  // Verifica cada badge
   for (const [badgeId, condition] of Object.entries(BADGE_CONDITIONS)) {
-    // Já tem esse badge? Pula
+    // Se já tem, ignora
     if (currentBadges.includes(badgeId)) continue
     
-    // Verifica condição
-    if (condition(context)) {
-      newBadges.push(badgeId)
+    try {
+      if (condition(context)) {
+        newBadges.push(badgeId)
+      }
+    } catch (e) {
+      console.warn(`Erro ao verificar badge ${badgeId}`, e)
     }
   }
   
-  // Se não conquistou nenhum, retorna null
   if (newBadges.length === 0) return null
   
-  // Se conquistou múltiplos, retorna SÓ O DE MAIOR PRIORIDADE
-  // (menor número = maior prioridade)
+  // Se ganhou mais de um, escolhe o de MAIOR PRIORIDADE (menor número)
+  // Ex: Se ganhar "Terminar Série" (Scholar) e "Diamante" (Collector) juntos,
+  // mostra o Collector primeiro.
   newBadges.sort((a, b) => {
-    const priorityA = BADGE_DEFINITIONS[a]?.priority || 999
-    const priorityB = BADGE_DEFINITIONS[b]?.priority || 999
-    return priorityA - priorityB
+    const pA = BADGE_DEFINITIONS[a]?.priority || 999
+    const pB = BADGE_DEFINITIONS[b]?.priority || 999
+    return pA - pB
   })
   
-  // Retorna apenas o mais importante
   return newBadges[0]
 }
 
 // ============================================
-// HELPER PARA CONSTRUIR CONTEXTO
+// CONTEXT BUILDER
 // ============================================
 export function buildBadgeContext(userData, additionalContext = {}) {
   return {
     xp: userData?.xp || 0,
     streak: userData?.streak || 0,
-    totalEpisodesCompleted: userData?.totalEpisodesCompleted || 0,
     totalSeriesCompleted: userData?.totalSeriesCompleted || 0,
     seriesWithDiamond: userData?.seriesWithDiamond || 0,
     hasAnyPerfectDictation: userData?.hasAnyPerfectDictation || false,

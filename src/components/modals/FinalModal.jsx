@@ -2,7 +2,8 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import confetti from 'canvas-confetti'
 
-export default function FinalModal({ score, total, xp, onNext, onRestart, isLastEpisode }) {
+// [ATUALIZADO] Recebe a prop 'isSaving'
+export default function FinalModal({ score, total, xp, onNext, onRestart, isLastEpisode, isSaving }) {
   const [displayScore, setDisplayScore] = useState(0)
   const [displayXP, setDisplayXP] = useState(0)
 
@@ -44,7 +45,6 @@ export default function FinalModal({ score, total, xp, onNext, onRestart, isLast
   }
 
   useEffect(() => {
-    // Confetti rápido (só se >=70%)
     if (percentage >= 70) {
       const end = Date.now() + 600
       const frame = () => {
@@ -55,17 +55,14 @@ export default function FinalModal({ score, total, xp, onNext, onRestart, isLast
       frame()
     }
 
-    // Rolling numbers rápido
     const duration = 600
     const startTime = performance.now()
     
     const animate = (now) => {
       const progress = Math.min((now - startTime) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      
       setDisplayScore(Math.floor(eased * score))
       setDisplayXP(Math.floor(eased * xp))
-      
       if (progress < 1) requestAnimationFrame(animate)
     }
     requestAnimationFrame(animate)
@@ -85,10 +82,8 @@ export default function FinalModal({ score, total, xp, onNext, onRestart, isLast
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
         className="bg-[#1A1A1A] w-full max-w-sm rounded-3xl p-8 text-center border border-white/10 shadow-2xl relative overflow-hidden"
       >
-        {/* Glow */}
         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 ${variant.bgGlow} blur-[80px] pointer-events-none opacity-50`} />
 
-        {/* Ícone */}
         <motion.div 
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -100,12 +95,10 @@ export default function FinalModal({ score, total, xp, onNext, onRestart, isLast
           </div>
         </motion.div>
 
-        {/* Título */}
         <h2 className={`text-2xl font-black tracking-widest italic mb-8 ${variant.color}`}>
           {variant.title}
         </h2>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-8 relative z-10">
           <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
             <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1">Acertos</p>
@@ -120,22 +113,36 @@ export default function FinalModal({ score, total, xp, onNext, onRestart, isLast
           </div>
         </div>
 
-        {/* Botões */}
         <div className="space-y-3 relative z-10">
           <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={onNext}
+            whileTap={!isSaving ? { scale: 0.98 } : {}}
+            onClick={!isSaving ? onNext : undefined}
+            disabled={isSaving}
             className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
+              isSaving ? 'bg-gray-600 cursor-wait opacity-80' : 
               isLastEpisode ? 'bg-[#22C55E] hover:bg-[#16a34a]' : 'bg-[#E50914] hover:bg-[#cc0812]'
             }`}
           >
-            {isLastEpisode ? 'Concluir Série' : 'Próximo Episódio'}
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                {isLastEpisode ? 'Concluir Série' : 'Próximo Episódio'}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+              </>
+            )}
           </motion.button>
 
           <button 
-            onClick={onRestart}
-            className="text-white/40 hover:text-white text-xs font-medium uppercase tracking-widest transition-colors py-2 flex items-center justify-center gap-2 mx-auto"
+            onClick={!isSaving ? onRestart : undefined}
+            disabled={isSaving}
+            className={`text-white/40 hover:text-white text-xs font-medium uppercase tracking-widest transition-colors py-2 flex items-center justify-center gap-2 mx-auto ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             Jogar Novamente

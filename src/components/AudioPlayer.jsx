@@ -76,7 +76,7 @@ class TypingSoundEngine {
 const typingSound = new TypingSoundEngine()
 
 // ============================================
-// AUDIO PLAYER COMPONENT
+// AUDIO PLAYER COMPONENT (PROTEGIDO)
 // ============================================
 export default function AudioPlayer({ 
   audioUrl, 
@@ -110,9 +110,10 @@ export default function AudioPlayer({
   const [isNewRecord, setIsNewRecord] = useState(false)
   const [previousBest, setPreviousBest] = useState(0)
   
-  // [v2] Badge singular agora (string ou null)
+  // [v7] SISTEMA DE FILA DE BADGES
+  // celebratingBadge: O badge que está sendo exibido AGORA (string ou null)
+  // pendingBadges: Array de badges esperando a vez
   const [celebratingBadge, setCelebratingBadge] = useState(null)
-  // [v2] Fila de badges pendentes (para mostrar um por vez)
   const [pendingBadges, setPendingBadges] = useState([])
   
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
@@ -182,7 +183,8 @@ export default function AudioPlayer({
     }
   }, [showDictation, feedback])
 
-  // [v2] Processa fila de badges pendentes
+  // [v7] PROCESSADOR DA FILA
+  // Se não tem badge na tela E tem badge na fila, puxa o próximo
   useEffect(() => {
     if (!celebratingBadge && pendingBadges.length > 0) {
       const [next, ...rest] = pendingBadges
@@ -269,7 +271,7 @@ export default function AudioPlayer({
     setTypingSoundEnabled(newState)
   }
 
-  // Verificar transcrição + Auto-save + XP
+  // Verificar transcrição + Gamification v7
   const handleCheck = async () => {
     if (!userText.trim() || !transcript) return
     
@@ -299,10 +301,10 @@ export default function AudioPlayer({
       }
     }
     
-    // [v2] Coleta badges - agora cada função retorna string ou null
+    // [v7] COLETA DE BADGES (Acumula para mostrar na fila)
     const collectedBadges = []
     
-    // Atualiza streak diário
+    // 1. Streak (Pode ganhar 'on_fire' ou 'dedicated')
     if (user && updateStreak) {
       try {
         const badge = await updateStreak()
@@ -312,7 +314,7 @@ export default function AudioPlayer({
       }
     }
     
-    // Dá XP pro usuário
+    // 2. XP (Pode ganhar 'rising_star')
     if (user && updateUserXP) {
       try {
         const badge = await updateUserXP(xp)
@@ -322,7 +324,7 @@ export default function AudioPlayer({
       }
     }
     
-    // Salva melhor score do ditado para gamificação
+    // 3. Score (Pode ganhar 'sharp_ear', 'diamond_hunter', etc)
     if (user && saveDictationScore && seriesId && episodeId) {
       try {
         const badge = await saveDictationScore(seriesId, episodeId, result.score)
@@ -332,10 +334,12 @@ export default function AudioPlayer({
       }
     }
     
-    // [v2] Remove duplicatas e dispara celebração UM POR VEZ
-    const uniqueBadges = [...new Set(collectedBadges)]
+    // [v7] GERENCIADOR DA FILA
+    // Remove duplicatas e nulos
+    const uniqueBadges = [...new Set(collectedBadges.filter(Boolean))]
+    
     if (uniqueBadges.length > 0) {
-      // Primeiro badge celebra agora, resto vai pra fila
+      // O primeiro vai para a tela, o resto para a fila
       const [first, ...rest] = uniqueBadges
       setCelebratingBadge(first)
       if (rest.length > 0) {
@@ -373,7 +377,7 @@ export default function AudioPlayer({
     setIsNewRecord(false)
   }
 
-  // [v2] Quando fecha o modal, celebratingBadge vira null e useEffect pega o próximo da fila
+  // [v7] Quando fecha o modal, celebratingBadge vira null e useEffect pega o próximo da fila
   const handleBadgeCelebrationComplete = () => {
     setCelebratingBadge(null)
   }
@@ -809,7 +813,7 @@ export default function AudioPlayer({
         )}
       </AnimatePresence>
       
-      {/* [v2] Modal de celebração - agora recebe badge (string) ao invés de badges (array) */}
+      {/* [v7] Modal de celebração - conectado à fila de badges */}
       <BadgeCelebrationModal 
         badge={celebratingBadge} 
         onComplete={handleBadgeCelebrationComplete} 

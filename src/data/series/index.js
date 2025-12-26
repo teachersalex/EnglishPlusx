@@ -1,11 +1,14 @@
 // src/data/series/index.js
 
+// === 0. Tutorial (Onboarding) ===
+import { seriesFirstSteps } from './tutorial/000-first-steps.js'
+
 // === 1. The Pillars (Foundation) ===
 import { seriesNumbers } from './pillars/101-numbers.js'
 import { seriesPeople } from './pillars/102-people.js'
-import { seriesTime } from './pillars/103-time.js'     // Novo
-import { seriesWorld } from './pillars/104-world.js'   // Novo
-import { seriesActions } from './pillars/105-actions.js' // Novo
+import { seriesTime } from './pillars/103-time.js'
+import { seriesWorld } from './pillars/104-world.js'
+import { seriesActions } from './pillars/105-actions.js'
 
 // === 2. Starter (Pré-A1) ===
 import { seriesFirstDay } from './starter/002-first-day.js'
@@ -20,6 +23,9 @@ import { seriesDoctorsSecret } from './a1/006-doctors-secret.js'
 
 // === COMBINA TUDO (Para rotas e acesso direto por ID) ===
 export const seriesData = {
+  // Tutorial
+  ...seriesFirstSteps,
+  
   // Pillars
   ...seriesNumbers,
   ...seriesPeople,
@@ -38,6 +44,9 @@ export const seriesData = {
   ...seriesRedLipstick,
   ...seriesDoctorsSecret,
 }
+
+// === TUTORIAL (separado para lógica de onboarding) ===
+export const tutorialSeries = seriesFirstSteps[0]
 
 // === EXPORTA POR NÍVEL (Para as seções da Home) ===
 export const seriesByLevel = {

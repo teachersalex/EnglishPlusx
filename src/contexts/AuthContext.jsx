@@ -37,6 +37,9 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
+// === TUTORIAL ID (não conta para badges/diamantes) ===
+const TUTORIAL_SERIES_ID = 0
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userData, setUserData] = useState(null)
@@ -177,24 +180,34 @@ export function AuthProvider({ children }) {
   // ============================================
   async function saveProgress(seriesId, episodeId, data) {
     if (!user) return null
-    const progressRef = doc(db, 'users', user.uid, 'progress', `${seriesId}_${episodeId}`)
+    
+    // Converte para número para consistência
+    const numericSeriesId = parseInt(seriesId, 10)
+    const numericEpisodeId = parseInt(episodeId, 10)
+    
+    const progressRef = doc(db, 'users', user.uid, 'progress', `${numericSeriesId}_${numericEpisodeId}`)
     
     const currentProgress = await getDoc(progressRef)
     const currentData = currentProgress.exists() ? currentProgress.data() : {}
     
     await setDoc(progressRef, {
-      seriesId,
-      episodeId,
+      seriesId: numericSeriesId,
+      episodeId: numericEpisodeId,
       ...data,
       dictationBestScore: currentData.dictationBestScore || 0,
       lastAccess: new Date().toISOString()
     }, { merge: true })
     
     if (data.completed) {
-      await updateCompletionCounters(seriesId, episodeId)
+      await updateCompletionCounters(numericSeriesId, numericEpisodeId)
+      
+      // === TUTORIAL NÃO CONTA PARA DIAMANTE ===
+      if (numericSeriesId === TUTORIAL_SERIES_ID) {
+        return null // Tutorial não dá badge
+      }
       
       // Verifica se ganhou diamante e atualiza contador
-      const isDiamond = await updateDiamondCount(seriesId)
+      const isDiamond = await updateDiamondCount(numericSeriesId)
       
       // Verifica badge de conclusão de série
       const seriesBadge = await checkSeriesBadge()
@@ -207,29 +220,55 @@ export function AuthProvider({ children }) {
   async function updateCompletionCounters(seriesId, episodeId) {
     if (!user) return
     
+    // Converte para número
+    const numericSeriesId = parseInt(seriesId, 10)
+    
     const userRef = doc(db, 'users', user.uid)
     const userSnap = await getDoc(userRef)
     const currentData = userSnap.data() || {}
     
     const progressRef = collection(db, 'users', user.uid, 'progress')
     const progressSnap = await getDocs(progressRef)
-    const completedEpisodes = progressSnap.docs.filter(d => d.data().completed === true).length
+    
+    // Conta episódios completos (excluindo tutorial)
+    const completedEpisodes = progressSnap.docs.filter(d => {
+      const data = d.data()
+      return data.completed === true && parseInt(data.seriesId, 10) !== TUTORIAL_SERIES_ID
+    }).length
     
     let totalSeriesCompleted = currentData.totalSeriesCompleted || 0
+    
     try {
       const { seriesData } = await import('../data/series')
-      const series = seriesData[seriesId]
+      const series = seriesData[numericSeriesId]
+      
       if (series) {
         const seriesProgress = progressSnap.docs
-          .filter(d => String(d.data().seriesId) === String(seriesId) && d.data().completed === true)
+          .filter(d => parseInt(d.data().seriesId, 10) === numericSeriesId && d.data().completed === true)
         
         if (seriesProgress.length >= series.episodes.length) {
-          const wasAlreadyComplete = (currentData.completedSeriesIds || []).includes(seriesId)
+          // Checa se já está em completedSeriesIds (como número)
+          const completedIds = (currentData.completedSeriesIds || []).map(id => parseInt(id, 10))
+          const wasAlreadyComplete = completedIds.includes(numericSeriesId)
+          
           if (!wasAlreadyComplete) {
-            totalSeriesCompleted += 1
+            // Adiciona à lista de completos
+            const newCompletedIds = [...completedIds, numericSeriesId]
+            
             await updateDoc(userRef, {
-              completedSeriesIds: [...(currentData.completedSeriesIds || []), seriesId]
+              completedSeriesIds: newCompletedIds
             })
+            
+            // Atualiza state local imediatamente
+            setUserData(prev => ({
+              ...prev,
+              completedSeriesIds: newCompletedIds
+            }))
+            
+            // Só incrementa contador se NÃO for tutorial
+            if (numericSeriesId !== TUTORIAL_SERIES_ID) {
+              totalSeriesCompleted += 1
+            }
           }
         }
       }
@@ -255,24 +294,26 @@ export function AuthProvider({ children }) {
   async function saveDictationScore(seriesId, episodeId, score) {
     if (!user) return null
     
-    const progressRef = doc(db, 'users', user.uid, 'progress', `${seriesId}_${episodeId}`)
+    // Converte para número
+    const numericSeriesId = parseInt(seriesId, 10)
+    const numericEpisodeId = parseInt(episodeId, 10)
+    
+    const progressRef = doc(db, 'users', user.uid, 'progress', `${numericSeriesId}_${numericEpisodeId}`)
     const currentProgress = await getDoc(progressRef)
-    const currentData = currentProgress.exists() ? currentProgress.data() : {}
+    const currentBestScore = currentProgress.exists() ? (currentProgress.data().dictationBestScore || 0) : 0
     
-    const currentBest = currentData.dictationBestScore || 0
-    const isNewRecord = score > currentBest
-    
-    if (isNewRecord) {
-      await setDoc(progressRef, {
-        seriesId,
-        episodeId,
-        dictationBestScore: score,
-        lastAccess: new Date().toISOString()
-      }, { merge: true })
+    // Só atualiza se for melhor
+    if (score > currentBestScore) {
+      await updateDoc(progressRef, { dictationBestScore: score })
     }
     
-    // Se foi 100%, incrementa contador e verifica badge
-    if (score === 100) {
+    // === TUTORIAL NÃO CONTA PARA BADGES ===
+    if (numericSeriesId === TUTORIAL_SERIES_ID) {
+      return null
+    }
+    
+    // Se score 100 e é a primeira vez com 100
+    if (score === 100 && currentBestScore < 100) {
       const userRef = doc(db, 'users', user.uid)
       await updateDoc(userRef, { 
         perfectDictationCount: increment(1)
@@ -296,6 +337,14 @@ export function AuthProvider({ children }) {
   // ============================================
   async function saveQuizScore(seriesId, episodeId, score, totalQuestions) {
     if (!user) return null
+    
+    // Converte para número
+    const numericSeriesId = parseInt(seriesId, 10)
+    
+    // === TUTORIAL NÃO CONTA PARA BADGES ===
+    if (numericSeriesId === TUTORIAL_SERIES_ID) {
+      return null
+    }
     
     const isPerfect = score === totalQuestions
     
@@ -324,22 +373,30 @@ export function AuthProvider({ children }) {
   async function updateDiamondCount(seriesId) {
     if (!user) return false
     
+    // Converte para número
+    const numericSeriesId = parseInt(seriesId, 10)
+    
+    // === TUTORIAL NÃO CONTA PARA DIAMANTE ===
+    if (numericSeriesId === TUTORIAL_SERIES_ID) {
+      return false
+    }
+    
     try {
       const { seriesData } = await import('../data/series')
-      const series = seriesData[seriesId]
+      const series = seriesData[numericSeriesId]
       if (!series) return false
       
-      const hasDiamond = await checkSeriesDiamond(seriesId, series.episodes.length)
+      const hasDiamond = await checkSeriesDiamond(numericSeriesId, series.episodes.length)
       if (!hasDiamond) return false
       
       const userRef = doc(db, 'users', user.uid)
       const userSnap = await getDoc(userRef)
       const currentData = userSnap.data() || {}
       
-      const diamondSeriesIds = currentData.diamondSeriesIds || []
-      if (diamondSeriesIds.includes(seriesId)) return false // Já tem
+      const diamondSeriesIds = (currentData.diamondSeriesIds || []).map(id => parseInt(id, 10))
+      if (diamondSeriesIds.includes(numericSeriesId)) return false // Já tem
       
-      const newDiamondSeriesIds = [...diamondSeriesIds, seriesId]
+      const newDiamondSeriesIds = [...diamondSeriesIds, numericSeriesId]
       const newCount = newDiamondSeriesIds.length
 
       await updateDoc(userRef, {
@@ -363,16 +420,22 @@ export function AuthProvider({ children }) {
 
   async function getSeriesProgress(seriesId) {
     if (!user) return []
+    const numericSeriesId = parseInt(seriesId, 10)
     const progressRef = collection(db, 'users', user.uid, 'progress')
     const snap = await getDocs(progressRef)
     return snap.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(p => String(p.seriesId) === String(seriesId))
+      .filter(p => parseInt(p.seriesId, 10) === numericSeriesId)
   }
 
   async function checkSeriesDiamond(seriesId, totalEpisodes) {
     if (!user) return false
-    const progress = await getSeriesProgress(seriesId)
+    const numericSeriesId = parseInt(seriesId, 10)
+    
+    // Tutorial nunca tem diamante
+    if (numericSeriesId === TUTORIAL_SERIES_ID) return false
+    
+    const progress = await getSeriesProgress(numericSeriesId)
     const completedEpisodes = progress.filter(p => p.completed === true)
     
     if (completedEpisodes.length < totalEpisodes) return false
@@ -387,15 +450,21 @@ export function AuthProvider({ children }) {
     if (!user) return {}
     const diamonds = {}
     for (const [seriesId, series] of Object.entries(seriesData)) {
-      const hasDiamond = await checkSeriesDiamond(seriesId, series.episodes.length)
-      diamonds[seriesId] = hasDiamond
+      const numericId = parseInt(seriesId, 10)
+      // Pula tutorial
+      if (numericId === TUTORIAL_SERIES_ID) continue
+      
+      const hasDiamond = await checkSeriesDiamond(numericId, series.episodes.length)
+      diamonds[numericId] = hasDiamond
     }
     return diamonds
   }
 
   async function getProgress(seriesId, episodeId) {
     if (!user) return null
-    const progressRef = doc(db, 'users', user.uid, 'progress', `${seriesId}_${episodeId}`)
+    const numericSeriesId = parseInt(seriesId, 10)
+    const numericEpisodeId = parseInt(episodeId, 10)
+    const progressRef = doc(db, 'users', user.uid, 'progress', `${numericSeriesId}_${numericEpisodeId}`)
     const snap = await getDoc(progressRef)
     return snap.exists() ? snap.data() : null
   }
@@ -406,7 +475,20 @@ export function AuthProvider({ children }) {
     const q = query(progressRef, orderBy('lastAccess', 'desc'), limit(1))
     const snap = await getDocs(q)
     if (snap.empty) return null
-    return snap.docs[0].data()
+    
+    const data = snap.docs[0].data()
+    
+    // Se o último progresso for tutorial e estiver completo, busca o próximo
+    if (parseInt(data.seriesId, 10) === TUTORIAL_SERIES_ID && data.completed) {
+      const q2 = query(progressRef, orderBy('lastAccess', 'desc'), limit(2))
+      const snap2 = await getDocs(q2)
+      if (snap2.docs.length > 1) {
+        return snap2.docs[1].data()
+      }
+      return null
+    }
+    
+    return data
   }
 
   async function saveTranscription(data) {

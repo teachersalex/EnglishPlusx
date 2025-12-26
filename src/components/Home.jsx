@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { seriesData, seriesByLevel } from '../data/series'
+import { seriesData, seriesByLevel, tutorialSeries } from '../data/series'
 import Header from './Header'
 import UserStats from './UserStats'
+import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
 import { useAuth } from '../contexts/AuthContext'
 
 /**
@@ -12,12 +13,13 @@ import { useAuth } from '../contexts/AuthContext'
  * 2. OURO (Concluído) = Terminou todos os episódios
  * 3. NORMAL = Em andamento ou não iniciado
  */
-function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
+function SeriesCard({ series, onClick, hasDiamond, isCompleted, isTutorial }) {
   return (
     <motion.div
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
+      data-tour={isTutorial ? "tutorial-series" : undefined}
       className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer w-[160px] flex-shrink-0 relative group"
     >
       {/* BADGE DE STATUS (Canto Superior Direito) */}
@@ -43,9 +45,9 @@ function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
               transition={{
                 duration: 2,
                 repeat: Infinity,
-                repeatDelay: 1 + Math.random() * 2, // Delay aleatório: 1-3s
+                repeatDelay: 1 + Math.random() * 2,
                 ease: "easeInOut",
-                delay: Math.random() * 2, // Início dessincronizado
+                delay: Math.random() * 2,
               }}
               className="absolute -top-1 -right-1 text-white text-xs pointer-events-none"
               style={{ filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9))' }}
@@ -102,7 +104,7 @@ function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
         </h3>
         
         <p className="text-[#6B7280] text-xs mt-1 flex items-center gap-1">
-          {series.episodes.length} episódios
+          {series.episodes.length} {series.episodes.length === 1 ? 'episódio' : 'episódios'}
           {hasDiamond && <span className="text-blue-400 font-bold">• Platina</span>}
           {!hasDiamond && isCompleted && <span className="text-yellow-500 font-bold">• Completo</span>}
         </p>
@@ -112,7 +114,6 @@ function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
 }
 
 function SeriesRow({ title, series, onSeriesClick, diamondSeries, completedSeriesIds }) {
-  // Proteção: se a série não existir ou estiver vazia, não renderiza nada
   if (!series || series.length === 0) return null
   
   return (
@@ -127,7 +128,7 @@ function SeriesRow({ title, series, onSeriesClick, diamondSeries, completedSerie
             series={s} 
             onClick={() => onSeriesClick(s.id)} 
             hasDiamond={diamondSeries[s.id] || false}
-            isCompleted={completedSeriesIds.includes(s.id)}
+            isCompleted={completedSeriesIds.some(id => parseInt(id, 10) === s.id)}
           />
         ))}
       </div>
@@ -135,30 +136,64 @@ function SeriesRow({ title, series, onSeriesClick, diamondSeries, completedSerie
   )
 }
 
+// Steps do tour na Home
+const HOME_TOUR_STEPS = [
+  {
+    target: '[data-tour="welcome"]',
+    emoji: '👋',
+    title: 'Bem-vindo ao English Plus!',
+    description: 'Sua comunidade exclusiva de inglês. Vou te mostrar como funciona em poucos passos.',
+    position: 'bottom',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="tutorial-series"]',
+    emoji: '🎯',
+    title: 'Sua primeira série',
+    description: 'Clique aqui para começar. É rápido e você vai aprender como usar o app.',
+    position: 'bottom',
+    allowClick: true,
+    nextPage: 'series',
+  },
+]
+
 function Home() {
   const navigate = useNavigate()
   const { user, userData, getLastProgress, getDiamondSeries } = useAuth()
   const [continueEpisode, setContinueEpisode] = useState(null)
   const [diamondSeries, setDiamondSeries] = useState({})
+  const [showTour, setShowTour] = useState(false)
+  const [tourStep, setTourStep] = useState(0)
   
   // Lista de IDs completados (com fallback para array vazio)
   const completedSeriesIds = userData?.completedSeriesIds || []
+  
+  // Checa se tutorial foi completado (série 0 está em completedSeriesIds)
+  const tutorialCompleted = completedSeriesIds.some(id => parseInt(id, 10) === 0)
+
+  // Ativa o tour pra novos usuários
+  useEffect(() => {
+    if (user && !tutorialCompleted && !OnboardingStorage.isComplete()) {
+      // Checa se deve mostrar tour na home
+      const step = OnboardingStorage.getStep()
+      if (!step || step === 'home') {
+        const timer = setTimeout(() => setShowTour(true), 500)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [user, tutorialCompleted])
 
   // Carrega último progresso
   useEffect(() => {
     async function loadContinue() {
       if (!user) return
-      
-      // Proteção contra função não carregada
       if (!getLastProgress) return
 
       try {
         const lastProgress = await getLastProgress()
         
-        // Só mostra se não estiver completo
         if (lastProgress && !lastProgress.completed) {
           const series = seriesData[lastProgress.seriesId]
-          // Proteção contra crash se a série não for encontrada
           if (!series) return 
 
           const episode = series.episodes.find(ep => ep.id === parseInt(lastProgress.episodeId))
@@ -203,6 +238,14 @@ function Home() {
   }, [user, getDiamondSeries])
 
   const handleSeriesClick = (id) => navigate(`/series/${id}`)
+  
+  const handleTourComplete = () => {
+    setShowTour(false)
+  }
+
+  const handleTourStepChange = (newStep) => {
+    setTourStep(newStep)
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
@@ -210,7 +253,9 @@ function Home() {
       <main className="max-w-5xl mx-auto px-4 py-8">
         
         {/* Se estiver logado, mostra stats + continue ouvindo */}
-        {user && <UserStats user={userData} continueEpisode={continueEpisode} />}
+        {user && tutorialCompleted && (
+          <UserStats user={userData} continueEpisode={continueEpisode} />
+        )}
         
         {/* Se NÃO estiver logado, mostra boas vindas */}
         {!user && (
@@ -232,42 +277,136 @@ function Home() {
           </motion.div>
         )}
 
-        {/* PILLARS */}
-        <SeriesRow 
-          title="The Pillars — A Base Sólida" 
-          series={seriesByLevel.pillars || []} 
-          onSeriesClick={handleSeriesClick} 
-          diamondSeries={diamondSeries}
-          completedSeriesIds={completedSeriesIds}
-        />
+        {/* ===== MODO TUTORIAL (não completou série 0) ===== */}
+        {user && !tutorialCompleted && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              data-tour="welcome"
+              className="text-center mb-8"
+            >
+              <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">
+                👋 Olá{userData?.name ? `, ${userData.name.split(' ')[0]}` : ''}! Vamos começar?
+              </h1>
+              <p className="text-[#6B7280]">
+                Complete seu primeiro passo para desbloquear todas as séries.
+              </p>
+            </motion.div>
 
-        {/* STARTER */}
-        <SeriesRow 
-          title="Starter — Pré-A1" 
-          series={seriesByLevel.starter} 
-          onSeriesClick={handleSeriesClick} 
-          diamondSeries={diamondSeries}
-          completedSeriesIds={completedSeriesIds}
-        />
-        
-        {/* A1 */}
-        <SeriesRow 
-          title="Nível A1 — Iniciante" 
-          series={seriesByLevel.a1} 
-          onSeriesClick={handleSeriesClick}
-          diamondSeries={diamondSeries}
-          completedSeriesIds={completedSeriesIds}
-        />
-        
-        {/* A2 */}
-        <SeriesRow 
-          title="Nível A2 — Básico" 
-          series={seriesByLevel.a2} 
-          onSeriesClick={handleSeriesClick}
-          diamondSeries={diamondSeries}
-          completedSeriesIds={completedSeriesIds}
-        />
+            {/* Só mostra a série tutorial */}
+            <div className="mb-8">
+              <h2 className="text-[#1A1A1A] text-xl font-bold mb-4">
+                Seu primeiro passo
+              </h2>
+              <div className="flex gap-4 px-1">
+                <SeriesCard 
+                  series={tutorialSeries} 
+                  onClick={() => handleSeriesClick(0)} 
+                  hasDiamond={false}
+                  isCompleted={false}
+                  isTutorial={true}
+                />
+              </div>
+            </div>
+
+            {/* Preview das séries bloqueadas */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              className="text-center py-8 border-t border-gray-200"
+            >
+              <p className="text-[#6B7280] text-sm">
+                🔒 Complete o tutorial para desbloquear {Object.values(seriesData).length - 1} séries
+              </p>
+            </motion.div>
+          </>
+        )}
+
+        {/* ===== MODO NORMAL (tutorial completado) ===== */}
+        {user && tutorialCompleted && (
+          <>
+            {/* PILLARS */}
+            <SeriesRow 
+              title="The Pillars — A Base Sólida" 
+              series={seriesByLevel.pillars || []} 
+              onSeriesClick={handleSeriesClick} 
+              diamondSeries={diamondSeries}
+              completedSeriesIds={completedSeriesIds}
+            />
+
+            {/* STARTER */}
+            <SeriesRow 
+              title="Starter — Pré-A1" 
+              series={seriesByLevel.starter} 
+              onSeriesClick={handleSeriesClick} 
+              diamondSeries={diamondSeries}
+              completedSeriesIds={completedSeriesIds}
+            />
+            
+            {/* A1 */}
+            <SeriesRow 
+              title="Nível A1 — Iniciante" 
+              series={seriesByLevel.a1} 
+              onSeriesClick={handleSeriesClick}
+              diamondSeries={diamondSeries}
+              completedSeriesIds={completedSeriesIds}
+            />
+            
+            {/* A2 */}
+            <SeriesRow 
+              title="Nível A2 — Básico" 
+              series={seriesByLevel.a2} 
+              onSeriesClick={handleSeriesClick}
+              diamondSeries={diamondSeries}
+              completedSeriesIds={completedSeriesIds}
+            />
+          </>
+        )}
+
+        {/* Visitantes (não logados) veem todas as séries */}
+        {!user && (
+          <>
+            <SeriesRow 
+              title="The Pillars — A Base Sólida" 
+              series={seriesByLevel.pillars || []} 
+              onSeriesClick={handleSeriesClick} 
+              diamondSeries={{}}
+              completedSeriesIds={[]}
+            />
+            <SeriesRow 
+              title="Starter — Pré-A1" 
+              series={seriesByLevel.starter} 
+              onSeriesClick={handleSeriesClick} 
+              diamondSeries={{}}
+              completedSeriesIds={[]}
+            />
+            <SeriesRow 
+              title="Nível A1 — Iniciante" 
+              series={seriesByLevel.a1} 
+              onSeriesClick={handleSeriesClick}
+              diamondSeries={{}}
+              completedSeriesIds={[]}
+            />
+            <SeriesRow 
+              title="Nível A2 — Básico" 
+              series={seriesByLevel.a2} 
+              onSeriesClick={handleSeriesClick}
+              diamondSeries={{}}
+              completedSeriesIds={[]}
+            />
+          </>
+        )}
       </main>
+
+      {/* Tour guiado */}
+      <OnboardingTour 
+        steps={HOME_TOUR_STEPS}
+        isActive={showTour}
+        currentStep={tourStep}
+        onStepChange={handleTourStepChange}
+        onComplete={handleTourComplete}
+      />
     </div>
   )
 }

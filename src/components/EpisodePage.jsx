@@ -8,6 +8,52 @@ import FinalModal from './modals/FinalModal'
 import BadgeCelebrationModal from './modals/BadgeCelebrationModal'
 import Header from './Header'
 import AudioPlayer from './AudioPlayer'
+import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
+
+// Steps do tour no EpisodePage
+const EPISODE_TOUR_STEPS = [
+  {
+    target: '[data-tour="player"]',
+    emoji: '🎧',
+    title: 'Este é o player',
+    description: 'Aqui você ouve o áudio do episódio. Pode pausar, voltar e avançar.',
+    position: 'bottom',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="speed-controls"]',
+    emoji: '🐢',
+    title: 'Controle de velocidade',
+    description: 'Está difícil? Use 0.5x ou 0.75x para ouvir mais devagar.',
+    position: 'top',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="dictation-button"]',
+    emoji: '✍️',
+    title: 'Ditado',
+    description: 'Depois de ouvir, clique aqui para escrever o que entendeu.',
+    position: 'top',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="quiz-button"]',
+    emoji: '📝',
+    title: 'Quiz',
+    description: 'Perguntas sobre o áudio para testar sua compreensão.',
+    position: 'top',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="play-button"]',
+    emoji: '▶️',
+    title: 'Agora é com você!',
+    description: 'Clique no play para começar a ouvir. Boa sorte!',
+    position: 'bottom',
+    allowClick: true,
+    finishTour: true,
+  },
+]
 
 function EpisodePage() {
   const { id, episodeId } = useParams()
@@ -22,7 +68,6 @@ function EpisodePage() {
   const [audioTime, setAudioTime] = useState(0)
   const [loadingProgress, setLoadingProgress] = useState(true)
   
-  // Trava para evitar navegação durante save
   const [isSaving, setIsSaving] = useState(false)
   
   const [wasAlreadyCompleted, setWasAlreadyCompleted] = useState(false)
@@ -32,12 +77,25 @@ function EpisodePage() {
   const [activeBadge, setActiveBadge] = useState(null)
   const [pendingNavigation, setPendingNavigation] = useState(null)
   
-  // [v11] Adicionado saveQuizScore e getProgress
+  // Tour state
+  const [showTour, setShowTour] = useState(false)
+  const [tourStep, setTourStep] = useState(0)
+  
   const { user, updateUserXP, saveProgress, getProgress, updateStreak, saveQuizScore } = useAuth()
 
   const series = seriesData[id]
   const episode = series?.episodes.find(ep => ep.id === parseInt(episodeId))
   const totalQuestions = episode?.questions.length || 0
+  
+  const isTutorial = parseInt(id, 10) === 0
+
+  // Ativa tour se estiver no passo 'episode'
+  useEffect(() => {
+    if (isTutorial && OnboardingStorage.getStep() === 'episode') {
+      const timer = setTimeout(() => setShowTour(true), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [isTutorial])
 
   useEffect(() => {
     if (!activeBadge && !showMiniModal && !showFinalModal && badgeQueue.length > 0) {
@@ -102,7 +160,7 @@ function EpisodePage() {
     
     const timer = setTimeout(loadProgress, 50)
     return () => clearTimeout(timer)
-  }, [user, id, episodeId, episode])
+  }, [user, id, episodeId, episode, getProgress])
 
   if (!series || !episode) {
     return (
@@ -198,13 +256,11 @@ function EpisodePage() {
     
     if (isLastQuestion) {
       if (user) {
-        // Marca salvamento
         setIsSaving(true)
         
         const finalQuizScore = score
         const isQuizPerfect = finalQuizScore === totalQuestions
         
-        // Salva progresso em background (não bloqueia modal)
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: totalQuestions,
@@ -217,7 +273,6 @@ function EpisodePage() {
         }).then(async (badgeCompletion) => {
           if (badgeCompletion) queueBadge(badgeCompletion)
           
-          // [v12] Se quiz perfeito, verifica Quiz Master
           if (isQuizPerfect && saveQuizScore) {
             const quizBadge = await saveQuizScore(id, episodeId, finalQuizScore, totalQuestions)
             if (quizBadge) queueBadge(quizBadge)
@@ -228,7 +283,7 @@ function EpisodePage() {
         
         setWasAlreadyCompleted(true)
       }
-      setShowFinalModal(true) // APARECE IMEDIATO
+      setShowFinalModal(true)
     } else {
       const nextIndex = currentQuestionIndex + 1
       setCurrentQuestionIndex(nextIndex)
@@ -264,6 +319,14 @@ function EpisodePage() {
 
   const handleBadgeComplete = () => {
     setActiveBadge(null)
+  }
+
+  const handleTourComplete = () => {
+    setShowTour(false)
+  }
+
+  const handleTourStepChange = (newStep) => {
+    setTourStep(newStep)
   }
 
   return (
@@ -328,6 +391,7 @@ function EpisodePage() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
+              data-tour="quiz-area"
             >
               <div className="mb-4 flex items-center gap-2 px-2">
                 <span className="text-[#6B7280] text-sm">Pergunta {currentQuestionIndex + 1} de {totalQuestions}</span>
@@ -397,6 +461,15 @@ function EpisodePage() {
       <BadgeCelebrationModal 
         badge={activeBadge} 
         onComplete={handleBadgeComplete} 
+      />
+
+      {/* Tour guiado */}
+      <OnboardingTour 
+        steps={EPISODE_TOUR_STEPS}
+        isActive={showTour}
+        currentStep={tourStep}
+        onStepChange={handleTourStepChange}
+        onComplete={handleTourComplete}
       />
     </div>
   )

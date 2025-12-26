@@ -1,6 +1,6 @@
 // src/components/AudioPlayer.jsx
 // Player principal - Orquestra os componentes
-// v11 - Refatorado e organizado
+// v12 - Com data-tour para onboarding
 // ============================================
 
 import { useState, useRef, useEffect } from 'react'
@@ -266,7 +266,10 @@ export default function AudioPlayer({
   // ========== RENDER ==========
 
   return (
-    <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden">
+    <div 
+      data-tour="player"
+      className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden"
+    >
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Capa com Breathing Effect */}
@@ -305,6 +308,7 @@ export default function AudioPlayer({
         <motion.button 
           whileTap={{ scale: 0.9 }} 
           onClick={togglePlay} 
+          data-tour="play-button"
           className="w-16 h-16 bg-[#E50914] rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-[0_0_20px_rgba(229,9,20,0.6)] hover:scale-105 transition-all z-10"
         >
           {isPlaying ? (
@@ -318,7 +322,10 @@ export default function AudioPlayer({
       </div>
 
       {/* Velocidades */}
-      <div className="flex items-center justify-center gap-2 mb-6">
+      <div 
+        data-tour="speed-controls"
+        className="flex items-center justify-center gap-2 mb-6"
+      >
         {speeds.map((speed) => (
           <motion.button
             key={speed}
@@ -337,6 +344,7 @@ export default function AudioPlayer({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleOpenDictation}
+          data-tour="dictation-button"
           className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shine-effect ${
             showDictation 
               ? 'bg-[#F59E0B] text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]' 
@@ -353,6 +361,7 @@ export default function AudioPlayer({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleOpenQuiz}
+          data-tour="quiz-button"
           className={`flex-1 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shine-effect ${
             showQuiz 
               ? 'bg-[#E50914] text-white shadow-[0_0_15px_rgba(229,9,20,0.4)]' 
@@ -374,6 +383,7 @@ export default function AudioPlayer({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="mt-6 overflow-hidden"
+            data-tour="dictation-area"
           >
             {!feedback ? (
               <DictationInput 

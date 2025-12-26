@@ -4,6 +4,28 @@ import { motion } from 'framer-motion'
 import { seriesData } from '../data/series'
 import { useAuth } from '../contexts/AuthContext'
 import Header from './Header'
+import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
+
+// Steps do tour na SeriesPage
+const SERIES_TOUR_STEPS = [
+  {
+    target: '[data-tour="series-hero"]',
+    emoji: '📖',
+    title: 'Esta é a página da série',
+    description: 'Aqui você vê as informações e os episódios disponíveis.',
+    position: 'bottom',
+    allowClick: false,
+  },
+  {
+    target: '[data-tour="first-episode"]',
+    emoji: '▶️',
+    title: 'Clique no episódio',
+    description: 'Cada série tem episódios curtos. Clique para começar o primeiro!',
+    position: 'bottom',
+    allowClick: true,
+    nextPage: 'episode',
+  },
+]
 
 function SeriesPage() {
   const { id } = useParams()
@@ -11,33 +33,37 @@ function SeriesPage() {
   const { user, getProgress } = useAuth()
   const [completedEpisodes, setCompletedEpisodes] = useState({})
   const [loading, setLoading] = useState(true)
+  const [showTour, setShowTour] = useState(false)
+  const [tourStep, setTourStep] = useState(0)
   
   const series = seriesData[id]
+  const isTutorial = parseInt(id, 10) === 0
 
-  // CORREÇÃO v9: Carregamento Paralelo (Promise.all)
-  // Remove o "waterfall" (fila indiana) que causava o delay de 150ms
+  // Ativa tour se estiver no passo 'series'
+  useEffect(() => {
+    if (isTutorial && OnboardingStorage.getStep() === 'series') {
+      const timer = setTimeout(() => setShowTour(true), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isTutorial])
+
+  // Carregamento Paralelo (Promise.all)
   useEffect(() => {
     async function loadAllProgress() {
-      // Se não tem user ou a série não existe, não há o que buscar
       if (!user || !series) {
         setLoading(false)
         return
       }
 
       try {
-        // Dispara todas as requisições ao mesmo tempo
         const checks = series.episodes.map(ep => 
           getProgress(id, ep.id.toString())
         )
-
-        // Espera todas voltarem juntas
         const results = await Promise.all(checks)
 
-        // Monta o objeto de completados
         const completed = {}
         results.forEach((progress, index) => {
           if (progress?.completed) {
-            // Usa o índice para pegar o ID correto do array original
             const epId = series.episodes[index].id
             completed[epId] = true
           }
@@ -69,11 +95,18 @@ function SeriesPage() {
   const completedCount = Object.keys(completedEpisodes).length
   const totalEpisodes = series.episodes.length
 
-  // Determina o estado visual do episódio
   const getEpisodeState = (epId) => {
     if (user && loading) return 'loading'
     if (completedEpisodes[epId]) return 'completed'
     return 'pending'
+  }
+
+  const handleTourComplete = () => {
+    setShowTour(false)
+  }
+
+  const handleTourStepChange = (newStep) => {
+    setTourStep(newStep)
   }
 
   return (
@@ -85,6 +118,7 @@ function SeriesPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          data-tour="series-hero"
           className="bg-[#1A1A1A] rounded-2xl p-8 mb-8 text-white shadow-xl flex gap-6"
         >
           <img 
@@ -96,7 +130,7 @@ function SeriesPage() {
             <span className="text-[#E50914] text-sm font-bold">NÍVEL {series.level}</span>
             <h1 className="text-3xl font-bold mt-1">{series.title}</h1>
             <p className="text-white/70 mt-2">{series.description}</p>
-            <p className="text-white/50 text-sm mt-2">{series.episodes.length} episódios • {series.genre}</p>
+            <p className="text-white/50 text-sm mt-2">{series.episodes.length} {series.episodes.length === 1 ? 'episódio' : 'episódios'} • {series.genre}</p>
             
             {/* Barra de progresso da série */}
             {user && !loading && completedCount > 0 && (
@@ -124,6 +158,7 @@ function SeriesPage() {
             const state = getEpisodeState(ep.id)
             const isCompleted = state === 'completed'
             const isLoading = state === 'loading'
+            const isFirst = index === 0
             
             return (
               <motion.div
@@ -132,6 +167,7 @@ function SeriesPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() => handleEpisodeClick(ep.id)}
+                data-tour={isFirst ? "first-episode" : undefined}
                 className={`bg-white rounded-xl p-4 shadow-md flex justify-between items-center cursor-pointer hover:shadow-lg transition-shadow ${
                   isCompleted ? 'border-l-4 border-[#22C55E]' : ''
                 }`}
@@ -140,13 +176,13 @@ function SeriesPage() {
                   {/* Badge do episódio */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
                     isLoading
-                      ? 'bg-[#D1D5DB] text-white'  // Mantém neutro no loading
+                      ? 'bg-[#D1D5DB] text-white'
                       : isCompleted 
                         ? 'bg-[#22C55E] text-white' 
                         : 'bg-[#E50914] text-white'
                   }`}>
                     {isLoading ? (
-                      ep.id // Mostra número enquanto carrega (comportamento original)
+                      ep.id
                     ) : isCompleted ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -180,6 +216,15 @@ function SeriesPage() {
           })}
         </div>
       </main>
+
+      {/* Tour guiado */}
+      <OnboardingTour 
+        steps={SERIES_TOUR_STEPS}
+        isActive={showTour}
+        currentStep={tourStep}
+        onStepChange={handleTourStepChange}
+        onComplete={handleTourComplete}
+      />
     </div>
   )
 }

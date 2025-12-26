@@ -1,44 +1,129 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, BADGE_DEFINITIONS } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContext'
+import { BADGE_DEFINITIONS, BADGE_DISPLAY_ORDER, getBadgeProgress } from '../utils/badgeSystem'
 import StreakOdometer from './StreakOdometer'
 
-// [v7] A LISTA DEFINITIVA (7 Badges Tangíveis)
-// Ordem de exibição visual na tela
-const BADGE_SLOTS = [
-  'sharp_ear',        // 1. O Início (1º 100%)
-  'on_fire',          // 2. O Hábito (3 dias)
-  'diamond_hunter',   // 3. O Vício (1º Diamante)
-  'rising_star',      // 4. Progresso (500 XP)
-  'precision_master', // 5. Consistência (3 Diamantes)
-  'scholar',          // 6. Volume (5 Séries)
-  'collector'         // 7. A Elite (5 Diamantes)
-]
+// ============================================
+// MODAL DE BADGE (ao clicar)
+// ============================================
+function BadgeDetailModal({ badge, isUnlocked, userData, onClose }) {
+  if (!badge) return null
+  
+  const badgeData = BADGE_DEFINITIONS[badge]
+  if (!badgeData) return null
+  
+  const progress = !isUnlocked ? getBadgeProgress(badge, userData) : null
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#1A1A1A] rounded-2xl p-6 max-w-xs w-full border border-white/10 shadow-2xl"
+      >
+        {/* Ícone */}
+        <div className="flex justify-center mb-4">
+          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+            isUnlocked 
+              ? 'bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/20' 
+              : 'bg-[#2A2A2A] border-2 border-dashed border-white/10'
+          }`}>
+            <span className={`text-4xl ${isUnlocked ? '' : 'grayscale opacity-30'}`}>
+              {badgeData.icon}
+            </span>
+          </div>
+        </div>
+        
+        {/* Nome */}
+        <h3 className={`text-center text-xl font-bold mb-2 ${
+          isUnlocked ? 'text-white' : 'text-white/50'
+        }`}>
+          {badgeData.name}
+        </h3>
+        
+        {/* Status */}
+        <div className="flex justify-center mb-4">
+          {isUnlocked ? (
+            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full">
+              ✓ CONQUISTADO
+            </span>
+          ) : (
+            <span className="px-3 py-1 bg-white/5 text-white/40 text-xs font-bold rounded-full">
+              🔒 BLOQUEADO
+            </span>
+          )}
+        </div>
+        
+        {/* Descrição */}
+        <p className="text-center text-white/70 text-sm mb-4 leading-relaxed">
+          {badgeData.description}
+        </p>
+        
+        {/* Barra de Progresso (só se bloqueado) */}
+        {!isUnlocked && progress && (
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-white/50 mb-1">
+              <span>Progresso</span>
+              <span>{progress.current}/{progress.total}</span>
+            </div>
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress.percentage}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+              />
+            </div>
+            <p className="text-center text-white/40 text-xs mt-2">
+              {progress.percentage === 0 
+                ? 'Ainda não começou' 
+                : `Falta${progress.total - progress.current === 1 ? '' : 'm'} ${progress.total - progress.current}!`
+              }
+            </p>
+          </div>
+        )}
+        
+        {/* Botão Fechar */}
+        <button
+          onClick={onClose}
+          className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl transition-colors"
+        >
+          Fechar
+        </button>
+      </motion.div>
+    </motion.div>
+  )
+}
 
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
 export default function UserStats({ user, continueEpisode }) {
   const navigate = useNavigate()
-  const { getUserBadges } = useAuth()
+  const { getUserBadges, userData: authUserData } = useAuth()
   const [badges, setBadges] = useState([])
-  const [seenBadges, setSeenBadges] = useState([])
   const [isAnimatingStreak, setIsAnimatingStreak] = useState(true)
+  const [selectedBadge, setSelectedBadge] = useState(null)
   
-  // Carrega badges vistos do localStorage para controlar o efeito "NEW"
-  useEffect(() => {
-    if (!user?.uid) return
-    const storageKey = `seenBadges_${user.uid}`
-    const stored = localStorage.getItem(storageKey)
-    if (stored) {
-      setSeenBadges(JSON.parse(stored))
-    }
-  }, [user?.uid])
+  // Usa userData do prop ou do auth
+  const currentUserData = user || authUserData
 
-  // Carrega badges do usuário do Firestore
+  // Carrega badges do usuário
   useEffect(() => {
     async function loadBadges() {
       if (getUserBadges) {
         const userBadges = await getUserBadges()
-        setBadges(userBadges)
+        setBadges(userBadges || [])
       } else if (user?.badges) {
         setBadges(user.badges)
       }
@@ -46,33 +131,16 @@ export default function UserStats({ user, continueEpisode }) {
     if (user) loadBadges()
   }, [user, getUserBadges])
 
-  // Marca badges como vistos após 3 segundos (para sumir o brilho "NEW")
-  useEffect(() => {
-    if (!user?.uid || badges.length === 0) return
-    
-    const newBadges = badges.filter(b => !seenBadges.includes(b))
-    if (newBadges.length === 0) return
-    
-    const timer = setTimeout(() => {
-      const storageKey = `seenBadges_${user.uid}`
-      const allSeen = [...new Set([...seenBadges, ...badges])]
-      localStorage.setItem(storageKey, JSON.stringify(allSeen))
-      setSeenBadges(allSeen)
-    }, 3000)
-    
-    return () => clearTimeout(timer)
-  }, [badges, seenBadges, user?.uid])
-
   if (!user) return null
   
   // Calcula nível (cada 100 XP = 1 nível)
-  const level = Math.floor(user.xp / 100) + 1
-  const xpInLevel = user.xp % 100
+  const level = Math.floor((user.xp || 0) / 100) + 1
+  const xpInLevel = (user.xp || 0) % 100
   const xpProgress = (xpInLevel / 100) * 100
 
-  // Helpers de verificação
-  const isNewBadge = (badgeId) => !seenBadges.includes(badgeId)
   const hasBadge = (badgeId) => badges.includes(badgeId)
+  const badgeCount = badges.length
+  const totalBadges = BADGE_DISPLAY_ORDER.length
 
   return (
     <div className="mb-8">
@@ -110,7 +178,7 @@ export default function UserStats({ user, continueEpisode }) {
               initial={{ width: 0 }}
               animate={{ width: `${xpProgress}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="h-full rounded-full sexy-progress-bar"
+              className="h-full rounded-full"
               style={{
                 background: 'linear-gradient(90deg, #E50914 0%, #ff6b6b 50%, #E50914 100%)',
                 backgroundSize: '200% 100%',
@@ -128,59 +196,57 @@ export default function UserStats({ user, continueEpisode }) {
               Conquistas
             </p>
             <p className="text-[#9CA3AF] text-xs">
-              {badges.length}/{BADGE_SLOTS.length}
+              {badgeCount}/{totalBadges}
             </p>
           </div>
           
-          <div className="flex flex-wrap gap-3">
-            {BADGE_SLOTS.map((badgeId, index) => {
+          <div className="grid grid-cols-6 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+            {BADGE_DISPLAY_ORDER.map((badgeId, index) => {
               const badge = BADGE_DEFINITIONS[badgeId]
               if (!badge) return null
               
               const unlocked = hasBadge(badgeId)
-              const isNew = unlocked && isNewBadge(badgeId)
+              const progress = !unlocked ? getBadgeProgress(badgeId, currentUserData) : null
               
               return (
                 <motion.div
                   key={badgeId}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="group relative"
+                  transition={{ delay: index * 0.03 }}
+                  className="relative"
                 >
-                  {/* Glow pulsante se for novo */}
-                  {isNew && (
-                    <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl blur opacity-50 animate-pulse" />
-                  )}
-                  
-                  {unlocked ? (
-                    // Badge Conquistado
-                    <div className={`relative w-12 h-12 bg-gradient-to-br from-[#1A1A1A] to-[#333] rounded-xl flex items-center justify-center shadow-md hover:shadow-lg hover:scale-110 transition-all cursor-pointer ${isNew ? 'ring-2 ring-yellow-400' : ''}`}>
-                      <span className="text-2xl filter drop-shadow-md">{badge.icon}</span>
-                    </div>
-                  ) : (
-                    // Badge Bloqueado (Cadeado)
-                    <div className="relative w-12 h-12 bg-[#F5F5F5] rounded-xl flex items-center justify-center border-2 border-dashed border-[#E0E0E0] opacity-60 hover:opacity-100 transition-opacity cursor-help">
-                      <span className="text-[#BDBDBD] text-xs">🔒</span>
-                    </div>
-                  )}
-                  
-                  {/* Indicador de "NOVO" */}
-                  {isNew && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center border border-white">
-                      <span className="text-[8px] font-bold text-black">!</span>
-                    </span>
-                  )}
-                  
-                  {/* Tooltip (mostra dica se bloqueado, parabéns se desbloqueado) */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#1A1A1A] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 min-w-[140px] text-center shadow-xl">
-                    <p className="font-bold text-yellow-500 mb-0.5">{badge.name}</p>
-                    <p className={unlocked ? "text-white/90" : "text-white/50 italic"}>
-                      {unlocked ? "Conquistado!" : badge.description}
-                    </p>
-                    {/* Seta do tooltip */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#1A1A1A]" />
-                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSelectedBadge(badgeId)}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center transition-all ${
+                      unlocked
+                        ? 'bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] shadow-lg border border-white/10 cursor-pointer'
+                        : 'bg-[#F5F5F5] border-2 border-dashed border-[#E0E0E0] cursor-pointer hover:border-[#BDBDBD]'
+                    }`}
+                  >
+                    {unlocked ? (
+                      <span className="text-2xl sm:text-3xl filter drop-shadow-md">
+                        {badge.icon}
+                      </span>
+                    ) : (
+                      <div className="relative w-full h-full flex items-center justify-center">
+                        <span className="text-xl sm:text-2xl grayscale opacity-20">
+                          {badge.icon}
+                        </span>
+                        {/* Mini barra de progresso */}
+                        {progress && progress.percentage > 0 && (
+                          <div className="absolute bottom-1 left-1 right-1 h-1 bg-black/10 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-amber-400 rounded-full"
+                              style={{ width: `${progress.percentage}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </motion.button>
                 </motion.div>
               )
             })}
@@ -188,7 +254,7 @@ export default function UserStats({ user, continueEpisode }) {
         </div>
       </motion.div>
 
-      {/* Botão de Continuar (Sticky na mente do usuário) */}
+      {/* Botão de Continuar */}
       {continueEpisode && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -226,6 +292,18 @@ export default function UserStats({ user, continueEpisode }) {
           </div>
         </motion.div>
       )}
+
+      {/* Modal de Detalhe do Badge */}
+      <AnimatePresence>
+        {selectedBadge && (
+          <BadgeDetailModal
+            badge={selectedBadge}
+            isUnlocked={hasBadge(selectedBadge)}
+            userData={currentUserData}
+            onClose={() => setSelectedBadge(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -18,22 +18,44 @@ function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer min-w-[160px] relative group"
+      className="bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer w-[160px] flex-shrink-0 relative group"
     >
       {/* BADGE DE STATUS (Canto Superior Direito) */}
       {hasDiamond ? (
-        // NÍVEL PLATINA (Diamante)
+        // NÍVEL PLATINA (Diamante) com SPARKLE
         <motion.div
           initial={{ scale: 0, rotate: -20 }}
           animate={{ scale: 1, rotate: 0 }}
           className="absolute top-2 right-2 z-10"
         >
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/20">
-            <span className="text-white text-sm filter drop-shadow-md">💎</span>
+          <div className="relative">
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/20">
+              <span className="text-white text-sm filter drop-shadow-md">💎</span>
+            </div>
+            {/* ✨ SPARKLE - Estrelinha girando e piscando */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0, rotate: 0 }}
+              animate={{ 
+                opacity: [0, 1, 1, 0],
+                scale: [0.5, 1, 1, 0.5],
+                rotate: [0, 180, 360, 360],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 1 + Math.random() * 2, // Delay aleatório: 1-3s
+                ease: "easeInOut",
+                delay: Math.random() * 2, // Início dessincronizado
+              }}
+              className="absolute -top-1 -right-1 text-white text-xs pointer-events-none"
+              style={{ filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.9))' }}
+            >
+              ✦
+            </motion.div>
           </div>
         </motion.div>
       ) : isCompleted ? (
-        // NÍVEL OURO (Concluído - A "base" que valoriza o esforço)
+        // NÍVEL OURO (Concluído)
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -47,8 +69,8 @@ function SeriesCard({ series, onClick, hasDiamond, isCompleted }) {
         </motion.div>
       ) : null}
       
-      {/* Imagem da Capa */}
-      <div className="h-32 overflow-hidden relative">
+      {/* Imagem da Capa - PROPORÇÃO 2:3 (600x900) */}
+      <div className="aspect-[2/3] overflow-hidden relative">
         <img 
           src={series.coverImage} 
           alt={series.title}
@@ -162,11 +184,9 @@ function Home() {
     loadContinue()
   }, [user, getLastProgress])
 
-  // Carrega diamantes (COM CORREÇÃO DE ERRO)
+  // Carrega diamantes
   useEffect(() => {
     async function loadDiamonds() {
-      // Se não tiver user, OU se getDiamondSeries não for uma função válida, para aqui.
-      // Isso evita o erro "intermediate value is undefined"
       if (!user || typeof getDiamondSeries !== 'function') return
       
       try {

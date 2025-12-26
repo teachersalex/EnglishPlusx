@@ -1,136 +1,234 @@
 /**
- * SISTEMA DE BADGES v7 - PLAYSTATION PLATINUM STYLE
- * * Filosofia: "Menos é Mais". Apenas conquistas que dão orgulho.
- * Som: Badges com 'isEpic: true' tocam o som de Platina.
+ * SISTEMA DE BADGES v12 — PROGRESSÃO MUSICAL
+ * Espaçamento correto: 1 badge por marco, nunca sobrepõe
+ * 
+ * Regras:
+ * - 1 badge por ação (nunca sobrepõe)
+ * - Prioridade: mais raro primeiro
  */
 
 // ============================================
-// DEFINIÇÕES (O MANUAL DO JOGO)
+// DEFINIÇÕES (10 BADGES)
 // ============================================
 export const BADGE_DEFINITIONS = {
-  // === 1. O GATILHO (Início Imediato) ===
-  sharp_ear: {
-    id: 'sharp_ear',
+  // === TRILHA DOS DIAMANTES (ao completar série ≥95%) ===
+  primeiro_diamante: {
+    id: 'primeiro_diamante',
+    name: 'Primeiro Diamante',
+    icon: '💎',
+    description: 'Sua primeira série com média ≥95% no ditado.',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 1 }
+  },
+  ouvido_afiado: {
+    id: 'ouvido_afiado',
     name: 'Ouvido Afiado',
     icon: '👂',
-    description: 'Seu primeiro 100% em um ditado. Você ouve cada detalhe!',
-    priority: 10,
-    category: 'excellence',
-    isEpic: true // 🔊 SOM DE PLATINA
+    description: '2 séries com média ≥95%. Você ouve cada detalhe!',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 2 }
   },
-  
-  on_fire: {
-    id: 'on_fire',
-    name: 'Em Chamas',
-    icon: '🔥',
-    description: '3 dias seguidos. O hábito começou.',
-    priority: 9,
-    category: 'consistency',
-    isEpic: false // 🔉 Som Normal
-  },
-
-  // === 2. A CONFIRMAÇÃO (Primeiras Séries) ===
-  diamond_hunter: {
-    id: 'diamond_hunter',
-    name: 'Caçador de Diamantes',
+  tres_diamantes: {
+    id: 'tres_diamantes',
+    name: 'Três Diamantes',
     icon: '💎',
-    description: 'Sua Primeira Série Diamante (Média > 95%).',
-    priority: 8,
-    category: 'excellence',
-    isEpic: true // 🔊 SOM DE PLATINA
+    description: '3 séries diamante. Consistência absurda!',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 3 }
+  },
+  lenda: {
+    id: 'lenda',
+    name: 'Lenda',
+    icon: '🏆',
+    description: '5 séries diamante. Você zerou o jogo!',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 5 }
   },
 
-  rising_star: {
-    id: 'rising_star',
-    name: 'Estrela',
-    icon: '🚀',
-    description: '500 XP acumulados. Você está decolando.',
-    priority: 7,
-    category: 'milestone',
-    isEpic: false // 🔉 Som Normal
+  // === TRILHA DE PRECISÃO (ao fazer ditado 100%) ===
+  mao_quente: {
+    id: 'mao_quente',
+    name: 'Mão Quente',
+    icon: '🔥',
+    description: '15 ditados perfeitos. Você está no flow!',
+    category: 'precision',
+    isEpic: false,
+    requirement: { type: 'perfectDictations', count: 15 }
   },
-
-  // === 3. A ELITE (Longo Prazo) ===
-  precision_master: {
-    id: 'precision_master',
-    name: 'Mestre da Precisão',
+  vinte_cinco_perfeitos: {
+    id: 'vinte_cinco_perfeitos',
+    name: 'Vinte e Cinco Perfeitos',
     icon: '🎯',
-    description: '3 Séries Diamante. Consistência absurda.',
-    priority: 5,
-    category: 'excellence',
-    isEpic: true // 🔊 SOM DE PLATINA
+    description: '25 ditados 100%. Precisão cirúrgica!',
+    category: 'precision',
+    isEpic: true,
+    requirement: { type: 'perfectDictations', count: 25 }
   },
 
-  scholar: {
-    id: 'scholar',
-    name: 'Acadêmico',
+  // === TRILHA DE VOLUME (ao completar série) ===
+  quatro_series: {
+    id: 'quatro_series',
+    name: 'Quatro Séries',
     icon: '📚',
-    description: 'Completou 5 Séries inteiras (Ouro ou Diamante).',
-    priority: 4,
-    category: 'progress',
-    isEpic: false // 🔉 Som Normal
+    description: '4 séries completas. Você está voando!',
+    category: 'volume',
+    isEpic: false,
+    requirement: { type: 'seriesCompleted', count: 4 }
+  },
+  seis_series: {
+    id: 'seis_series',
+    name: 'Seis Séries',
+    icon: '📚',
+    description: '6 séries completas. Dedicação admirável!',
+    category: 'volume',
+    isEpic: false,
+    requirement: { type: 'seriesCompleted', count: 6 }
+  },
+  dez_series: {
+    id: 'dez_series',
+    name: 'Dez Séries',
+    icon: '📚',
+    description: '10 séries completas. Veterano!',
+    category: 'volume',
+    isEpic: true,
+    requirement: { type: 'seriesCompleted', count: 10 }
   },
 
-  collector: { // O antigo "Legend"
-    id: 'collector',
-    name: 'Colecionador',
-    icon: '👑',
-    description: '5 Séries Diamante. Você zerou o jogo atual.',
-    priority: 1, // Prioridade MÁXIMA
-    category: 'excellence',
-    isEpic: true // 🔊 SOM DE PLATINA
+  // === TRILHA DE QUIZ ===
+  quiz_master: {
+    id: 'quiz_master',
+    name: 'Quiz Master',
+    icon: '🧠',
+    description: '15 quizzes perfeitos. Cérebro afiado!',
+    category: 'quiz',
+    isEpic: true,
+    requirement: { type: 'perfectQuizzes', count: 15 }
   }
 }
 
-// ============================================
-// CONDIÇÕES (AS REGRAS)
-// ============================================
-export const BADGE_CONDITIONS = {
-  // Início
-  sharp_ear: (ctx) => ctx.hasAnyPerfectDictation === true,
-  on_fire: (ctx) => ctx.streak >= 3,
-  
-  // Intermediário
-  diamond_hunter: (ctx) => ctx.seriesWithDiamond >= 1,
-  rising_star: (ctx) => ctx.xp >= 500,
+// Ordem de exibição na vitrine
+export const BADGE_DISPLAY_ORDER = [
+  'primeiro_diamante',
+  'ouvido_afiado',
+  'tres_diamantes',
+  'lenda',
+  'mao_quente',
+  'vinte_cinco_perfeitos',
+  'quiz_master',
+  'quatro_series',
+  'seis_series',
+  'dez_series'
+]
 
-  // Elite
-  precision_master: (ctx) => ctx.seriesWithDiamond >= 3,
-  scholar: (ctx) => ctx.totalSeriesCompleted >= 5,
-  collector: (ctx) => ctx.seriesWithDiamond >= 5
+// ============================================
+// CHECKERS POR TRIGGER
+// ============================================
+
+/**
+ * Ao completar SÉRIE (verifica diamantes E volume)
+ * Prioridade: Diamante > Volume
+ */
+export function checkSeriesCompletionBadge(context, currentBadges = []) {
+  const { seriesWithDiamond, totalSeriesCompleted } = context
+  
+  // Trilha dos Diamantes (prioridade: mais raro primeiro)
+  if (seriesWithDiamond >= 5 && !currentBadges.includes('lenda')) {
+    return 'lenda'
+  }
+  if (seriesWithDiamond >= 3 && !currentBadges.includes('tres_diamantes')) {
+    return 'tres_diamantes'
+  }
+  if (seriesWithDiamond >= 2 && !currentBadges.includes('ouvido_afiado')) {
+    return 'ouvido_afiado'
+  }
+  if (seriesWithDiamond >= 1 && !currentBadges.includes('primeiro_diamante')) {
+    return 'primeiro_diamante'
+  }
+  
+  // Trilha de Volume (só se não ganhou diamante)
+  if (totalSeriesCompleted >= 10 && !currentBadges.includes('dez_series')) {
+    return 'dez_series'
+  }
+  if (totalSeriesCompleted >= 6 && !currentBadges.includes('seis_series')) {
+    return 'seis_series'
+  }
+  if (totalSeriesCompleted >= 4 && !currentBadges.includes('quatro_series')) {
+    return 'quatro_series'
+  }
+  
+  return null
+}
+
+/**
+ * Ao fazer DITADO 100%
+ */
+export function checkDictationBadge(context, currentBadges = []) {
+  const { perfectDictationCount } = context
+  
+  if (perfectDictationCount >= 25 && !currentBadges.includes('vinte_cinco_perfeitos')) {
+    return 'vinte_cinco_perfeitos'
+  }
+  if (perfectDictationCount >= 15 && !currentBadges.includes('mao_quente')) {
+    return 'mao_quente'
+  }
+  
+  return null
+}
+
+/**
+ * Ao completar QUIZ 100%
+ */
+export function checkQuizBadge(context, currentBadges = []) {
+  const { perfectQuizCount } = context
+  
+  if (perfectQuizCount >= 15 && !currentBadges.includes('quiz_master')) {
+    return 'quiz_master'
+  }
+  
+  return null
 }
 
 // ============================================
-// LÓGICA DE VERIFICAÇÃO
+// HELPERS PARA PROGRESSO
 // ============================================
-export function checkForNewBadge(context, currentBadges = []) {
-  const newBadges = []
+
+/**
+ * Retorna o progresso atual para cada badge
+ * Usado para mostrar "3/5" nos badges bloqueados
+ */
+export function getBadgeProgress(badgeId, userData) {
+  const badge = BADGE_DEFINITIONS[badgeId]
+  if (!badge?.requirement) return null
   
-  for (const [badgeId, condition] of Object.entries(BADGE_CONDITIONS)) {
-    // Se já tem, ignora
-    if (currentBadges.includes(badgeId)) continue
-    
-    try {
-      if (condition(context)) {
-        newBadges.push(badgeId)
-      }
-    } catch (e) {
-      console.warn(`Erro ao verificar badge ${badgeId}`, e)
-    }
+  const { type, count } = badge.requirement
+  let current = 0
+  
+  switch (type) {
+    case 'diamonds':
+      current = userData?.seriesWithDiamond || 0
+      break
+    case 'perfectDictations':
+      current = userData?.perfectDictationCount || 0
+      break
+    case 'seriesCompleted':
+      current = userData?.totalSeriesCompleted || 0
+      break
+    case 'perfectQuizzes':
+      current = userData?.perfectQuizCount || 0
+      break
+    default:
+      return null
   }
   
-  if (newBadges.length === 0) return null
-  
-  // Se ganhou mais de um, escolhe o de MAIOR PRIORIDADE (menor número)
-  // Ex: Se ganhar "Terminar Série" (Scholar) e "Diamante" (Collector) juntos,
-  // mostra o Collector primeiro.
-  newBadges.sort((a, b) => {
-    const pA = BADGE_DEFINITIONS[a]?.priority || 999
-    const pB = BADGE_DEFINITIONS[b]?.priority || 999
-    return pA - pB
-  })
-  
-  return newBadges[0]
+  return {
+    current: Math.min(current, count),
+    total: count,
+    percentage: Math.min(100, Math.round((current / count) * 100))
+  }
 }
 
 // ============================================
@@ -138,11 +236,10 @@ export function checkForNewBadge(context, currentBadges = []) {
 // ============================================
 export function buildBadgeContext(userData, additionalContext = {}) {
   return {
-    xp: userData?.xp || 0,
-    streak: userData?.streak || 0,
-    totalSeriesCompleted: userData?.totalSeriesCompleted || 0,
     seriesWithDiamond: userData?.seriesWithDiamond || 0,
-    hasAnyPerfectDictation: userData?.hasAnyPerfectDictation || false,
+    totalSeriesCompleted: userData?.totalSeriesCompleted || 0,
+    perfectDictationCount: userData?.perfectDictationCount || 0,
+    perfectQuizCount: userData?.perfectQuizCount || 0,
     ...additionalContext
   }
 }

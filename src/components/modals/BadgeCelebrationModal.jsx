@@ -26,7 +26,7 @@ export default function BadgeCelebrationModal({ badge, onComplete }) {
   
   const playSound = (isEpic) => {
     try {
-      const file = isEpic ? '/audio/platinum_unlock.mp3' : '/audio/trophy_unlock.mp3'
+      const file = isEpic ? '/audio/diamond_unlock.mp3' : '/audio/trophy_unlock.mp3'
       const audio = new Audio(file)
       audio.volume = 0.6
       audio.play().catch(e => console.log("Audio autoplay blocked", e))

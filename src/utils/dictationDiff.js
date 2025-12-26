@@ -3,7 +3,7 @@
 // ============================================
 // ALGORITMO DE CORREÇÃO DE DITADO
 // Wagner-Fischer (Edit Distance) + Semantic Expansion
-// v10.6 — Synonyms (OK/Okay) + Grammar Strictness + Full Lists
+// v10.7 — Synonyms (OK/Okay) + Grammar Strictness + Full Lists
 // ============================================
 
 // Mapa de contrações EXTENDIDO (A1-B2 coverage)
@@ -42,7 +42,7 @@ const CONTRACTIONS = {
   "lets": "let us", "ill": "i will", "youll": "you will", "ive": "i have"
 }
 
-// [v10.6] SINÔNIMOS ACEITÁVEIS (NOVO!)
+// [v10.7] SINÔNIMOS ACEITÁVEIS (NOVO!)
 // Resolve o problema: "ok" (user) vs "okay" (original)
 const SYNONYMS = {
   'ok': 'okay',
@@ -181,7 +181,7 @@ const HEADER_TRIGGERS = new Set([
 const INVISIBLE_CHARS = /[\u200B-\u200D\uFEFF]/g
 
 /**
- * [v10.6] Normaliza palavra (Nome ou Sinônimo)
+ * [v10.7] Normaliza palavra (Nome ou Sinônimo)
  * Anna → ana, OK → okay, etc.
  */
 function normalizeWordVariation(word) {
@@ -206,7 +206,7 @@ export function normalizeAndTokenize(text) {
   clean = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
   
   // 3. Normaliza apóstrofos (TODOS os tipos Unicode para o padrão ')
-  clean = clean.replace(/[''ʼʻ`´]/g, "'")
+  clean = clean.replace(/[\u2018\u2019\u02BC\u02BB\u0060\u00B4\u2032']/g, "'")
   
   // 4. Converte números para extenso
   clean = clean.replace(/\b([0-9]|1[0-9]|20)\b/g, (match) => NUMBER_WORDS[match] || match)
@@ -215,7 +215,7 @@ export function normalizeAndTokenize(text) {
   clean = clean.replace(INVISIBLE_CHARS, '')
 
   // 6. Remove pontuação (troca por espaço para separar palavras coladas)
-  // [v10.6] Removemos pontuações como ? ! . , para garantir que "okay." = "ok"
+  // [v10.7] Removemos pontuações como ? ! . , para garantir que "okay." = "ok"
   clean = clean.replace(/[^a-z0-9'\s]/g, ' ')
   
   // 7. Colapsa múltiplos espaços em um só e remove pontas

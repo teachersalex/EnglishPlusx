@@ -32,7 +32,8 @@ function EpisodePage() {
   const [activeBadge, setActiveBadge] = useState(null)
   const [pendingNavigation, setPendingNavigation] = useState(null)
   
-  const { user, updateUserXP, saveProgress, getProgress, updateStreak } = useAuth()
+  // [v11] Adicionado saveQuizScore e getProgress
+  const { user, updateUserXP, saveProgress, getProgress, updateStreak, saveQuizScore } = useAuth()
 
   const series = seriesData[id]
   const episode = series?.episodes.find(ep => ep.id === parseInt(episodeId))
@@ -200,23 +201,34 @@ function EpisodePage() {
         // Marca salvamento
         setIsSaving(true)
         
+        const finalQuizScore = score
+        const isQuizPerfect = finalQuizScore === totalQuestions
+        
+        // Salva progresso em background (não bloqueia modal)
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: totalQuestions,
           questionsAnswered: totalQuestions,
-          score,
+          score: finalQuizScore,
           completed: true,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
-        }).then(badgeCompletion => {
+        }).then(async (badgeCompletion) => {
           if (badgeCompletion) queueBadge(badgeCompletion)
+          
+          // [v12] Se quiz perfeito, verifica Quiz Master
+          if (isQuizPerfect && saveQuizScore) {
+            const quizBadge = await saveQuizScore(id, episodeId, finalQuizScore, totalQuestions)
+            if (quizBadge) queueBadge(quizBadge)
+          }
+          
           setIsSaving(false)
         })
         
         setWasAlreadyCompleted(true)
       }
-      setShowFinalModal(true)
+      setShowFinalModal(true) // APARECE IMEDIATO
     } else {
       const nextIndex = currentQuestionIndex + 1
       setCurrentQuestionIndex(nextIndex)
@@ -281,7 +293,7 @@ function EpisodePage() {
               setPendingNavigation(null)
             }}
             isLastEpisode={isLastEpisode}
-            isSaving={isSaving} // [NOVO] Passa o estado de salvamento
+            isSaving={isSaving}
           />
         )}
       </AnimatePresence>

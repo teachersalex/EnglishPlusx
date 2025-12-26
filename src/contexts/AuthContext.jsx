@@ -22,8 +22,10 @@ import {
 } from 'firebase/firestore'
 
 import { 
-  BADGE_DEFINITIONS, 
-  checkForNewBadge, 
+  BADGE_DEFINITIONS,
+  checkSeriesCompletionBadge,
+  checkDictationBadge,
+  checkQuizBadge,
   buildBadgeContext 
 } from '../utils/badgeSystem'
 
@@ -41,9 +43,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   // ============================================
-  // SISTEMA DE BADGES
+  // SISTEMA DE BADGES v11
   // ============================================
-  async function checkAndAwardBadge(additionalContext = {}) {
+  
+  /**
+   * Verifica badge ao completar SÉRIE
+   * Retorna no máximo 1 badge (prioridade: diamante > volume)
+   */
+  async function checkSeriesBadge() {
     if (!user) return null
     
     const userRef = doc(db, 'users', user.uid)
@@ -51,8 +58,8 @@ export function AuthProvider({ children }) {
     const currentData = userSnap.data() || {}
     const currentBadges = currentData.badges || []
     
-    const badgeContext = buildBadgeContext(currentData, additionalContext)
-    const newBadge = checkForNewBadge(badgeContext, currentBadges)
+    const context = buildBadgeContext(currentData)
+    const newBadge = checkSeriesCompletionBadge(context, currentBadges)
     
     if (newBadge) {
       const updatedBadges = [...currentBadges, newBadge]
@@ -63,18 +70,65 @@ export function AuthProvider({ children }) {
     return newBadge
   }
 
-  // Atualizar XP
+  /**
+   * Verifica badge ao fazer DITADO 100%
+   */
+  async function checkDictationPerfectBadge() {
+    if (!user) return null
+    
+    const userRef = doc(db, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
+    const currentData = userSnap.data() || {}
+    const currentBadges = currentData.badges || []
+    
+    const context = buildBadgeContext(currentData)
+    const newBadge = checkDictationBadge(context, currentBadges)
+    
+    if (newBadge) {
+      const updatedBadges = [...currentBadges, newBadge]
+      await updateDoc(userRef, { badges: updatedBadges })
+      setUserData(prev => ({ ...prev, badges: updatedBadges }))
+    }
+    
+    return newBadge
+  }
+
+  /**
+   * Verifica badge ao completar QUIZ 100%
+   */
+  async function checkQuizPerfectBadge() {
+    if (!user) return null
+    
+    const userRef = doc(db, 'users', user.uid)
+    const userSnap = await getDoc(userRef)
+    const currentData = userSnap.data() || {}
+    const currentBadges = currentData.badges || []
+    
+    const context = buildBadgeContext(currentData)
+    const newBadge = checkQuizBadge(context, currentBadges)
+    
+    if (newBadge) {
+      const updatedBadges = [...currentBadges, newBadge]
+      await updateDoc(userRef, { badges: updatedBadges })
+      setUserData(prev => ({ ...prev, badges: updatedBadges }))
+    }
+    
+    return newBadge
+  }
+
+  // ============================================
+  // XP E STREAK
+  // ============================================
+  
   async function updateUserXP(amount) {
     if (!user) return null
     const userRef = doc(db, 'users', user.uid)
     await updateDoc(userRef, { xp: increment(amount) })
     const newXP = (userData?.xp || 0) + amount
     setUserData(prev => ({ ...prev, xp: newXP }))
-    
-    return await checkAndAwardBadge({ xp: newXP })
+    return null // XP não dá badge diretamente
   }
 
-  // Atualizar Streak
   async function updateStreak(overrideUid = null) {
     const uid = overrideUid || user?.uid
     if (!uid) return null
@@ -114,13 +168,12 @@ export function AuthProvider({ children }) {
         lastActivity: now.toISOString()
       })
       setUserData(prev => ({ ...prev, streak: newStreak, lastActivity: now.toISOString() }))
-      return await checkAndAwardBadge({ streak: newStreak })
     }
-    return null
+    return null // Streak não dá badge diretamente
   }
 
   // ============================================
-  // [FIX] SAVE PROGRESS COM RETORNO DE DIAMANTE
+  // SAVE PROGRESS (com verificação de série)
   // ============================================
   async function saveProgress(seriesId, episodeId, data) {
     if (!user) return null
@@ -140,19 +193,13 @@ export function AuthProvider({ children }) {
     if (data.completed) {
       await updateCompletionCounters(seriesId, episodeId)
       
-      // [FIX 1] Captura o badge de diamante se ele for ganho agora
-      const diamondBadge = await updateDiamondCount(seriesId)
-
-      // Verifica badge de conclusão (scholar, bookworm)
-      const completionBadge = await checkAndAwardBadge({ 
-        completedEpisode: true, 
-        seriesId, 
-        episodeId 
-      })
-
-      // [FIX 2] Retorna o Diamante se houver, senão o de conclusão
-      // Isso garante que o modal mostre a conquista mais importante
-      return diamondBadge || completionBadge
+      // Verifica se ganhou diamante e atualiza contador
+      const isDiamond = await updateDiamondCount(seriesId)
+      
+      // Verifica badge de conclusão de série
+      const seriesBadge = await checkSeriesBadge()
+      
+      return seriesBadge
     }
     return null
   }
@@ -203,7 +250,7 @@ export function AuthProvider({ children }) {
   }
 
   // ============================================
-  // [FIX] SAVE DICTATION COM RETORNO DE DIAMANTE
+  // SAVE DICTATION SCORE
   // ============================================
   async function saveDictationScore(seriesId, episodeId, score) {
     if (!user) return null
@@ -224,60 +271,73 @@ export function AuthProvider({ children }) {
       }, { merge: true })
     }
     
-    const userRef = doc(db, 'users', user.uid)
-    const updates = {}
-    let shouldUpdateUser = false
-    
+    // Se foi 100%, incrementa contador e verifica badge
     if (score === 100) {
-      updates.hasAnyPerfectDictation = true
-      updates.perfectDictationCount = increment(1)
-      shouldUpdateUser = true
-    }
-    
-    // [FIX 3] Captura o badge de diamante aqui também
-    const diamondBadge = await updateDiamondCount(seriesId)
-    
-    if (shouldUpdateUser) {
-      await updateDoc(userRef, updates)
-      setUserData(prev => {
-        const currentCount = prev.perfectDictationCount || 0
-        return { 
-          ...prev, 
-          ...updates,
-          perfectDictationCount: updates.perfectDictationCount ? currentCount + 1 : currentCount
-        }
+      const userRef = doc(db, 'users', user.uid)
+      await updateDoc(userRef, { 
+        perfectDictationCount: increment(1)
       })
+      
+      const newCount = (userData?.perfectDictationCount || 0) + 1
+      setUserData(prev => ({ 
+        ...prev, 
+        perfectDictationCount: newCount
+      }))
+      
+      // Verifica badge de ditado
+      return await checkDictationPerfectBadge()
     }
     
-    const dictationBadge = await checkAndAwardBadge({ 
-      hasAnyPerfectDictation: userData?.hasAnyPerfectDictation || (score === 100),
-      seriesId
-    })
-    
-    // [FIX 4] Prioriza o retorno do Diamante
-    return diamondBadge || dictationBadge
+    return null
   }
 
   // ============================================
-  // [FIX] UPDATE DIAMOND QUE RETORNA O BADGE
+  // SAVE QUIZ SCORE
+  // ============================================
+  async function saveQuizScore(seriesId, episodeId, score, totalQuestions) {
+    if (!user) return null
+    
+    const isPerfect = score === totalQuestions
+    
+    if (isPerfect) {
+      const userRef = doc(db, 'users', user.uid)
+      await updateDoc(userRef, { 
+        perfectQuizCount: increment(1)
+      })
+      
+      const newCount = (userData?.perfectQuizCount || 0) + 1
+      setUserData(prev => ({ 
+        ...prev, 
+        perfectQuizCount: newCount
+      }))
+      
+      // Verifica badge de quiz (Quiz Master)
+      return await checkQuizPerfectBadge()
+    }
+    
+    return null
+  }
+
+  // ============================================
+  // DIAMOND COUNT
   // ============================================
   async function updateDiamondCount(seriesId) {
-    if (!user) return null // Retorno explícito null
+    if (!user) return false
     
     try {
       const { seriesData } = await import('../data/series')
       const series = seriesData[seriesId]
-      if (!series) return null
+      if (!series) return false
       
       const hasDiamond = await checkSeriesDiamond(seriesId, series.episodes.length)
-      if (!hasDiamond) return null
+      if (!hasDiamond) return false
       
       const userRef = doc(db, 'users', user.uid)
       const userSnap = await getDoc(userRef)
       const currentData = userSnap.data() || {}
       
       const diamondSeriesIds = currentData.diamondSeriesIds || []
-      if (diamondSeriesIds.includes(seriesId)) return null // Já tem
+      if (diamondSeriesIds.includes(seriesId)) return false // Já tem
       
       const newDiamondSeriesIds = [...diamondSeriesIds, seriesId]
       const newCount = newDiamondSeriesIds.length
@@ -293,15 +353,11 @@ export function AuthProvider({ children }) {
         seriesWithDiamond: newCount
       }))
 
-      // [FIX 5] A MÁGICA: Verifica e RETORNA o badge ganho
-      return await checkAndAwardBadge({
-        isDiamondUpdate: true,
-        seriesWithDiamond: newCount
-      })
+      return true // Ganhou diamante novo
 
     } catch (e) {
       console.error('Erro ao atualizar diamantes:', e)
-      return null
+      return false
     }
   }
 
@@ -391,8 +447,8 @@ export function AuthProvider({ children }) {
         totalEpisodesCompleted: 0,
         totalSeriesCompleted: 0,
         seriesWithDiamond: 0,
-        hasAnyPerfectDictation: false,
         perfectDictationCount: 0,
+        perfectQuizCount: 0,
         completedSeriesIds: [],
         diamondSeriesIds: [],
         lastActivity: new Date().toISOString(),
@@ -460,11 +516,11 @@ export function AuthProvider({ children }) {
     saveTranscription,
     getTranscriptions,
     saveDictationScore,
+    saveQuizScore,
     getSeriesProgress,
     checkSeriesDiamond,
     getDiamondSeries,
     getUserBadges,
-    checkAndAwardBadge,
     loading
   }
 

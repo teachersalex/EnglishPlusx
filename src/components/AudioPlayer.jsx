@@ -1,83 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+// src/components/AudioPlayer.jsx
+// Player principal - Orquestra os componentes
+// v11 - Refatorado e organizado
+// ============================================
+
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { calculateDiff } from '../utils/dictationDiff'
 import { useAuth } from '../contexts/AuthContext'
 import BadgeCelebrationModal from './modals/BadgeCelebrationModal'
+import DictationInput from './DictationInput'
+import DictationResult from './DictationResult'
 
-// ============================================
-// TYPING SOUND ENGINE (Real Audio File)
-// Som de teclado real com variação natural
-// ============================================
-class TypingSoundEngine {
-  constructor() {
-    this.audioContext = null
-    this.audioBuffer = null
-    this.enabled = true
-    this.isLoading = false
-  }
-
-  async init() {
-    if (this.audioContext) return
-    
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    
-    // Carrega o arquivo de som uma vez
-    if (!this.audioBuffer && !this.isLoading) {
-      this.isLoading = true
-      try {
-        const response = await fetch('/audio/keySound.mp3')
-        const arrayBuffer = await response.arrayBuffer()
-        this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer)
-      } catch (err) {
-        console.warn('Não foi possível carregar som de teclado:', err)
-      }
-      this.isLoading = false
-    }
-  }
-
-  play() {
-    if (!this.enabled || !this.audioContext || !this.audioBuffer) return
-    
-    // Resume context if suspended (browser autoplay policy)
-    if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume()
-    }
-
-    // Cria source node
-    const source = this.audioContext.createBufferSource()
-    source.buffer = this.audioBuffer
-    
-    // Variação de pitch (0.9 a 1.1) — cada tecla soa diferente
-    source.playbackRate.value = 0.9 + Math.random() * 0.2
-    
-    // Gain node para volume
-    const gainNode = this.audioContext.createGain()
-    // Variação de volume (0.3 a 0.5) — sutil mas presente
-    gainNode.gain.value = 0.3 + Math.random() * 0.2
-    
-    // Conecta
-    source.connect(gainNode)
-    gainNode.connect(this.audioContext.destination)
-    
-    // Toca apenas os primeiros 100ms do arquivo
-    source.start(0, 0, 0.1)
-  }
-
-  toggle() {
-    this.enabled = !this.enabled
-    return this.enabled
-  }
-
-  setEnabled(value) {
-    this.enabled = value
-  }
-}
-
-const typingSound = new TypingSoundEngine()
-
-// ============================================
-// AUDIO PLAYER COMPONENT (PROTEGIDO)
-// ============================================
 export default function AudioPlayer({ 
   audioUrl, 
   coverImage, 
@@ -91,52 +24,31 @@ export default function AudioPlayer({
   episodeId 
 }) {
   const audioRef = useRef(null)
-  const textareaRef = useRef(null)
   const { user, saveTranscription, saveDictationScore, updateUserXP, updateStreak, getProgress } = useAuth()
   
+  // Player state
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
   
+  // Dictation state
   const [showDictation, setShowDictation] = useState(false)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
-  const [isFocused, setIsFocused] = useState(false)
-  const [isTyping, setIsTyping] = useState(false)
-  const [typingSoundEnabled, setTypingSoundEnabled] = useState(true)
   const [attemptCount, setAttemptCount] = useState(0)
   const [xpEarned, setXpEarned] = useState(0)
   const [isNewRecord, setIsNewRecord] = useState(false)
   const [previousBest, setPreviousBest] = useState(0)
   
-  // [v7] SISTEMA DE FILA DE BADGES
-  // celebratingBadge: O badge que está sendo exibido AGORA (string ou null)
-  // pendingBadges: Array de badges esperando a vez
+  // Badge queue system (v7)
   const [celebratingBadge, setCelebratingBadge] = useState(null)
   const [pendingBadges, setPendingBadges] = useState([])
   
   const speeds = [0.5, 0.75, 1, 1.25, 1.5]
-  const typingTimeoutRef = useRef(null)
 
-  // Contador de palavras
-  const wordCount = userText.trim() ? userText.trim().split(/\s+/).length : 0
-
-  // Inicializa o engine de som no primeiro interaction
-  useEffect(() => {
-    const initSound = async () => {
-      await typingSound.init()
-      document.removeEventListener('click', initSound)
-      document.removeEventListener('keydown', initSound)
-    }
-    document.addEventListener('click', initSound, { once: true })
-    document.addEventListener('keydown', initSound, { once: true })
-    return () => {
-      document.removeEventListener('click', initSound)
-      document.removeEventListener('keydown', initSound)
-    }
-  }, [])
-
+  // ========== AUDIO EFFECTS ==========
+  
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -152,12 +64,10 @@ export default function AudioPlayer({
     const audio = audioRef.current
     if (!audio) return
     const updateTime = () => setCurrentTime(audio.currentTime)
-    
     const handleEnded = () => {
       setIsPlaying(false)
       if (onTimeUpdate) onTimeUpdate(audio.currentTime)
     }
-
     audio.addEventListener('timeupdate', updateTime)
     audio.addEventListener('ended', handleEnded)
     return () => {
@@ -176,15 +86,7 @@ export default function AudioPlayer({
     return () => clearInterval(interval)
   }, [onTimeUpdate])
 
-  // Auto-focus na textarea quando abre o ditado
-  useEffect(() => {
-    if (showDictation && textareaRef.current && !feedback) {
-      setTimeout(() => textareaRef.current?.focus(), 100)
-    }
-  }, [showDictation, feedback])
-
-  // [v7] PROCESSADOR DA FILA
-  // Se não tem badge na tela E tem badge na fila, puxa o próximo
+  // Badge queue processor
   useEffect(() => {
     if (!celebratingBadge && pendingBadges.length > 0) {
       const [next, ...rest] = pendingBadges
@@ -192,6 +94,8 @@ export default function AudioPlayer({
       setPendingBadges(rest)
     }
   }, [celebratingBadge, pendingBadges])
+
+  // ========== PLAYER HANDLERS ==========
 
   const handlePause = () => {
     if (onTimeUpdate && audioRef.current) {
@@ -236,42 +140,18 @@ export default function AudioPlayer({
     }
   }
 
-  // Abre/fecha a área do Quiz a partir do Player
   const handleOpenQuiz = () => {
     setShowQuiz(true)
     setShowDictation(false)
   }
 
-  // Abre/fecha a área de Ditado a partir do Player
   const handleOpenDictation = () => {
     setShowDictation(true)
     setShowQuiz(false)
   }
 
-  // Monitora digitação para som
-  const handleTextChange = useCallback((e) => {
-    const newText = e.target.value
-    const isAddingChar = newText.length > userText.length
-    setUserText(newText)
-    
-    // Som de digitação (só quando adiciona caractere)
-    if (isAddingChar && typingSoundEnabled) {
-      typingSound.play()
-    }
-    
-    // Estado de "digitando" para animação
-    setIsTyping(true)
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 150)
-  }, [userText, typingSoundEnabled])
+  // ========== DICTATION HANDLERS ==========
 
-  // Toggle som de digitação
-  const toggleTypingSound = () => {
-    const newState = typingSound.toggle()
-    setTypingSoundEnabled(newState)
-  }
-
-  // Verificar transcrição + Gamification v7
   const handleCheck = async () => {
     if (!userText.trim() || !transcript) return
     
@@ -289,11 +169,10 @@ export default function AudioPlayer({
     setXpEarned(xp)
     
     // Verifica se é novo recorde
-    let prevBest = 0
     if (user && getProgress && seriesId && episodeId) {
       try {
         const progress = await getProgress(seriesId, episodeId)
-        prevBest = progress?.dictationBestScore || 0
+        const prevBest = progress?.dictationBestScore || 0
         setPreviousBest(prevBest)
         setIsNewRecord(result.score > prevBest)
       } catch (err) {
@@ -301,10 +180,9 @@ export default function AudioPlayer({
       }
     }
     
-    // [v7] COLETA DE BADGES (Acumula para mostrar na fila)
+    // Coleta badges
     const collectedBadges = []
     
-    // 1. Streak (Pode ganhar 'on_fire' ou 'dedicated')
     if (user && updateStreak) {
       try {
         const badge = await updateStreak()
@@ -314,7 +192,6 @@ export default function AudioPlayer({
       }
     }
     
-    // 2. XP (Pode ganhar 'rising_star')
     if (user && updateUserXP) {
       try {
         const badge = await updateUserXP(xp)
@@ -324,7 +201,6 @@ export default function AudioPlayer({
       }
     }
     
-    // 3. Score (Pode ganhar 'sharp_ear', 'diamond_hunter', etc)
     if (user && saveDictationScore && seriesId && episodeId) {
       try {
         const badge = await saveDictationScore(seriesId, episodeId, result.score)
@@ -334,20 +210,15 @@ export default function AudioPlayer({
       }
     }
     
-    // [v7] GERENCIADOR DA FILA
-    // Remove duplicatas e nulos
+    // Gerencia fila de badges
     const uniqueBadges = [...new Set(collectedBadges.filter(Boolean))]
-    
     if (uniqueBadges.length > 0) {
-      // O primeiro vai para a tela, o resto para a fila
       const [first, ...rest] = uniqueBadges
       setCelebratingBadge(first)
-      if (rest.length > 0) {
-        setPendingBadges(rest)
-      }
+      if (rest.length > 0) setPendingBadges(rest)
     }
     
-    // AUTO-SAVE da transcrição
+    // Auto-save da transcrição
     if (user && saveTranscription) {
       try {
         await saveTranscription({
@@ -377,10 +248,11 @@ export default function AudioPlayer({
     setIsNewRecord(false)
   }
 
-  // [v7] Quando fecha o modal, celebratingBadge vira null e useEffect pega o próximo da fila
   const handleBadgeCelebrationComplete = () => {
     setCelebratingBadge(null)
   }
+
+  // ========== UTILS ==========
 
   const formatTime = (time) => {
     if (isNaN(time)) return '0:00'
@@ -390,6 +262,8 @@ export default function AudioPlayer({
   }
 
   const progress = duration ? (currentTime / duration) * 100 : 0
+
+  // ========== RENDER ==========
 
   return (
     <div className="bg-[#1A1A1A] rounded-2xl p-6 shadow-xl max-w-full overflow-hidden">
@@ -443,7 +317,7 @@ export default function AudioPlayer({
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => skip(5)} className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-white/20 hover:scale-105 transition-all">+5s</motion.button>
       </div>
 
-      {/* Velocidades - todas visíveis */}
+      {/* Velocidades */}
       <div className="flex items-center justify-center gap-2 mb-6">
         {speeds.map((speed) => (
           <motion.button
@@ -459,7 +333,6 @@ export default function AudioPlayer({
 
       {/* Botões de ação */}
       <div className="flex gap-3">
-        {/* Ditado - esquerda */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -476,7 +349,6 @@ export default function AudioPlayer({
           Ditado
         </motion.button>
 
-        {/* Quiz - direita */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
@@ -504,316 +376,24 @@ export default function AudioPlayer({
             className="mt-6 overflow-hidden"
           >
             {!feedback ? (
-              // ========== MODO EDIÇÃO ==========
-              <div className="relative">
-                {/* Borda Moleskine */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#3D3529] via-[#2A2318] to-[#1A1510] p-[3px]">
-                  <div className="w-full h-full rounded-[13px] bg-[#FAF8F5]" />
-                </div>
-                
-                <motion.div 
-                  className="relative rounded-2xl overflow-hidden"
-                  animate={isFocused ? { 
-                    boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.5), 0 8px 32px rgba(0,0,0,0.12)' 
-                  } : {
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
-                  }}
-                >
-                  {/* Barra lateral estilo Moleskine - muda com foco */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 z-20 transition-all duration-300 ${
-                    isFocused 
-                      ? 'bg-gradient-to-b from-[#F59E0B] via-[#F59E0B] to-[#D97706] shadow-[2px_0_8px_rgba(245,158,11,0.3)]' 
-                      : 'bg-gradient-to-b from-[#E5E0D8] to-[#D4CFC5]'
-                  }`} />
-
-                  {/* Header minimalista */}
-                  <div className="bg-[#FAF8F5] px-5 pt-4 pb-2 flex items-center justify-between border-b border-[#E8E2D9]">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#E50914]" />
-                      <span className="text-[#8B7E6A] text-xs font-medium uppercase tracking-wider">
-                        Transcrição
-                      </span>
-                    </div>
-                    
-                    {/* Som toggle */}
-                    <button
-                      onClick={toggleTypingSound}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        typingSoundEnabled 
-                          ? 'text-[#3D3529] hover:bg-[#E8E2D9]' 
-                          : 'text-[#C4B8A5] hover:bg-[#E8E2D9]'
-                      }`}
-                      title={typingSoundEnabled ? 'Som ligado' : 'Som desligado'}
-                    >
-                      {typingSoundEnabled ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  
-                  {/* Área de texto */}
-                  <div className="bg-[#FAF8F5] relative">
-                    {/* Linhas decorativas */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                      {[...Array(12)].map((_, i) => (
-                        <div 
-                          key={i}
-                          className="absolute w-full border-b border-[#E8E2D9]/50"
-                          style={{ top: `${28 + i * 28}px` }}
-                        />
-                      ))}
-                      {/* Margem lateral */}
-                      <div className="absolute left-12 top-0 bottom-0 w-px bg-[#E8C4C4]/30" />
-                    </div>
-                    
-                    <textarea
-                      ref={textareaRef}
-                      value={userText}
-                      onChange={handleTextChange}
-                      onFocus={() => setIsFocused(true)}
-                      onBlur={() => setIsFocused(false)}
-                      placeholder="Ouça o áudio e escreva o que você entende..."
-                      className="w-full min-h-[280px] p-5 pl-16 bg-transparent text-[#3D3529] text-lg leading-7 resize-none focus:outline-none placeholder:text-[#C4B8A5] placeholder:italic relative z-10"
-                      style={{ 
-                        fontFamily: "'Charter', 'Georgia', serif",
-                        lineHeight: '28px'
-                      }}
-                      spellCheck={false}
-                    />
-                    
-                    {/* Indicador de digitação ativa - pontinho piscando */}
-                    <AnimatePresence>
-                      {isTyping && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          className="absolute bottom-4 right-4 w-2 h-2 bg-[#F59E0B] rounded-full z-20"
-                        />
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  
-                  {/* Footer com contador e botões */}
-                  <div className="bg-[#F5F2ED] px-5 py-3 flex items-center justify-between border-t border-[#E8E2D9]">
-                    {/* Contador de palavras */}
-                    <span className={`text-sm font-medium transition-colors ${
-                      wordCount > 0 ? 'text-[#3D3529]' : 'text-[#C4B8A5]'
-                    }`}>
-                      {wordCount} {wordCount === 1 ? 'palavra' : 'palavras'}
-                    </span>
-                    
-                    <div className="flex gap-2">
-                      {/* Limpar */}
-                      {userText.length > 0 && (
-                        <motion.button
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setUserText('')}
-                          className="px-4 py-2 text-[#8B7E6A] text-sm font-medium hover:text-[#3D3529] transition-colors"
-                        >
-                          Limpar
-                        </motion.button>
-                      )}
-                      
-                      {/* Verificar */}
-                      <motion.button 
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleCheck}
-                        disabled={!userText.trim()}
-                        className={`px-6 py-2 rounded-xl font-semibold text-sm transition-all ${
-                          userText.trim() 
-                            ? 'bg-[#3D3529] text-white hover:bg-[#2A2318] shadow-md' 
-                            : 'bg-[#E8E2D9] text-[#C4B8A5] cursor-not-allowed'
-                        }`}
-                      >
-                        Verificar
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
+              <DictationInput 
+                userText={userText}
+                setUserText={setUserText}
+                onCheck={handleCheck}
+              />
             ) : (
-              // ========== MODO RESULTADO ==========
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
-              >
-                {/* Header do resultado */}
-                <div className={`p-5 ${
-                  feedback.score >= 90 
-                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' 
-                    : feedback.score >= 70 
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                      : 'bg-gradient-to-r from-slate-600 to-slate-700'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
-                        {feedback.score >= 90 ? 'Excelente!' : feedback.score >= 70 ? 'Bom trabalho!' : 'Continue praticando'}
-                      </p>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold text-white">{feedback.score}%</span>
-                        <span className="text-white/60 text-sm">de acerto</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white/90 text-2xl font-semibold">
-                        {feedback.correctCount}<span className="text-white/50 text-lg">/{feedback.total}</span>
-                      </div>
-                      <p className="text-white/60 text-xs">palavras certas</p>
-                    </div>
-                  </div>
-                  
-                  {/* Badges de XP + Recorde + Diamante */}
-                  <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap items-center gap-2">
-                    {/* XP Badge */}
-                    <motion.div
-                      initial={{ scale: 0, rotate: -10 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.2, type: "spring" }}
-                      className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full"
-                    >
-                      <span className="text-yellow-300 text-sm">⭐</span>
-                      <span className="text-white font-bold text-sm">+{xpEarned} XP</span>
-                    </motion.div>
-                    
-                    {/* Novo Recorde Badge */}
-                    {isNewRecord && (
-                      <motion.div
-                        initial={{ scale: 0, rotate: 10 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: 0.3, type: "spring" }}
-                        className="flex items-center gap-1.5 bg-yellow-400/30 backdrop-blur-sm px-3 py-1.5 rounded-full"
-                      >
-                        <span className="text-sm">🏆</span>
-                        <span className="text-yellow-100 font-bold text-sm">Novo Recorde!</span>
-                      </motion.div>
-                    )}
-                    
-                    {/* Diamond Progress */}
-                    {feedback.score >= 95 ? (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.4, type: "spring" }}
-                        className="flex items-center gap-1.5 bg-cyan-400/30 backdrop-blur-sm px-3 py-1.5 rounded-full"
-                      >
-                        <span className="text-sm">💎</span>
-                        <span className="text-cyan-100 font-bold text-sm">Nível Diamante!</span>
-                      </motion.div>
-                    ) : feedback.score >= 80 ? (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full"
-                      >
-                        <span className="text-sm opacity-50">💎</span>
-                        <span className="text-white/70 text-xs">Faltam {95 - feedback.score}% para 💎</span>
-                      </motion.div>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* Corpo do resultado */}
-                <div className="bg-[#FAF8F5] p-5">
-                  <p className="text-[#8B7E6A] text-xs font-medium uppercase tracking-wider mb-3">
-                    Sua transcrição
-                  </p>
-                  
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E2D9] leading-relaxed text-lg">
-                    {feedback.diffResult.map((item, idx) => {
-                      if (item.type === 'title') {
-                        return <span key={idx} className="text-slate-300 text-sm mr-1">{item.word}</span>
-                      }
-                      
-                      if (item.type === 'correct') {
-                        return <span key={idx} className="text-[#3D3529]">{item.word} </span>
-                      }
-                      
-                      if (item.type === 'missing') {
-                        return (
-                          <span 
-                            key={idx} 
-                            className="inline-block bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mx-0.5 font-medium"
-                            title="Faltou esta palavra"
-                          >
-                            {item.word}
-                          </span>
-                        )
-                      }
-                      
-                      if (item.type === 'extra') {
-                        return (
-                          <span 
-                            key={idx} 
-                            className="text-slate-400 line-through decoration-slate-300 text-base mx-0.5"
-                          >
-                            {item.word}
-                          </span>
-                        )
-                      }
-                      
-                      return (
-                        <span key={idx} className="inline-flex items-baseline mx-0.5">
-                          <span className="text-red-400 line-through decoration-red-300 text-base">{item.word}</span>
-                          <span className="text-emerald-600 font-medium ml-1">{item.expected}</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-
-                  {/* Legenda */}
-                  <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#E8E2D9] justify-center">
-                    <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
-                      <span className="w-3 h-3 rounded bg-amber-100 border border-amber-200"></span>
-                      Faltou
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
-                      <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></span>
-                      Correção
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs text-[#8B7E6A]">
-                      <span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 relative">
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <span className="w-full h-px bg-slate-400 rotate-[-10deg]"></span>
-                        </span>
-                      </span>
-                      Extra
-                    </span>
-                  </div>
-
-                  {/* Botão tentar novamente */}
-                  <motion.button 
-                    whileHover={{ scale: 1.01, y: -1 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={handleReset}
-                    className="w-full mt-5 py-4 rounded-xl bg-[#1A1A1A] text-white font-semibold hover:bg-[#2A2A2A] transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Tentar Novamente
-                  </motion.button>
-                </div>
-              </motion.div>
+              <DictationResult 
+                feedback={feedback}
+                xpEarned={xpEarned}
+                isNewRecord={isNewRecord}
+                onReset={handleReset}
+              />
             )}
           </motion.div>
         )}
       </AnimatePresence>
       
-      {/* [v7] Modal de celebração - conectado à fila de badges */}
+      {/* Modal de celebração */}
       <BadgeCelebrationModal 
         badge={celebratingBadge} 
         onComplete={handleBadgeCelebrationComplete} 

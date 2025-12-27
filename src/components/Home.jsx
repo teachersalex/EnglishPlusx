@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { seriesData, seriesByLevel, tutorialSeries } from '../data/series'
 import Header from './Header'
 import UserStats from './UserStats'
-import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
+import OnboardingTour from './OnboardingTour'
+import { OnboardingStorage } from '../utils/onboardingStorage'
 import { useAuth } from '../contexts/AuthContext'
 
 /**
@@ -168,8 +169,11 @@ function Home() {
   // Lista de IDs completados (com fallback para array vazio)
   const completedSeriesIds = userData?.completedSeriesIds || []
   
-  // Checa se tutorial foi completado (série 0 está em completedSeriesIds)
-  const tutorialCompleted = completedSeriesIds.some(id => parseInt(id, 10) === 0)
+  // Checa se tutorial foi completado OU se é conta antiga com progresso
+  // Contas antigas (xp > 0 ou totalSeriesCompleted > 0) pulam o tutorial
+  const hasExistingProgress = (userData?.xp || 0) > 0 || (userData?.totalSeriesCompleted || 0) > 0
+  const tutorialSeriesCompleted = completedSeriesIds.some(id => parseInt(id, 10) === 0)
+  const tutorialCompleted = tutorialSeriesCompleted || hasExistingProgress
 
   // Ativa o tour pra novos usuários
   useEffect(() => {

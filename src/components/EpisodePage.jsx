@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { seriesData } from '../data/series'
 import { useAuth } from '../contexts/AuthContext'
 import MiniModal from './modals/MiniModal'
@@ -8,7 +8,8 @@ import FinalModal from './modals/FinalModal'
 import BadgeCelebrationModal from './modals/BadgeCelebrationModal'
 import Header from './Header'
 import AudioPlayer from './AudioPlayer'
-import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
+import OnboardingTour from './OnboardingTour'
+import { OnboardingStorage } from '../utils/onboardingStorage'
 
 // Steps do tour no EpisodePage
 const EPISODE_TOUR_STEPS = [
@@ -17,7 +18,7 @@ const EPISODE_TOUR_STEPS = [
     emoji: '🎧',
     title: 'Este é o player',
     description: 'Aqui você ouve o áudio do episódio. Pode pausar, voltar e avançar.',
-    position: 'bottom',
+    position: 'top',
     allowClick: false,
   },
   {
@@ -62,6 +63,7 @@ function EpisodePage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [score, setScore] = useState(0)
+  const scoreRef = useRef(0)
   const [showMiniModal, setShowMiniModal] = useState(false)
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false)
   const [showFinalModal, setShowFinalModal] = useState(false)
@@ -81,6 +83,10 @@ function EpisodePage() {
   const [showTour, setShowTour] = useState(false)
   const [tourStep, setTourStep] = useState(0)
   
+  // Refs para controle
+  const hasLoadedProgress = useRef(false)
+  const lastSaveTimeRef = useRef(0) // THROTTLE: controla último save do áudio
+  
   const { user, updateUserXP, saveProgress, getProgress, updateStreak, saveQuizScore } = useAuth()
 
   const series = seriesData[id]
@@ -97,6 +103,7 @@ function EpisodePage() {
     }
   }, [isTutorial])
 
+  // Processa fila de badges
   useEffect(() => {
     if (!activeBadge && !showMiniModal && !showFinalModal && badgeQueue.length > 0) {
       const [nextBadge, ...rest] = badgeQueue
@@ -105,6 +112,7 @@ function EpisodePage() {
     }
   }, [activeBadge, showMiniModal, showFinalModal, badgeQueue])
 
+  // Navega quando badges terminarem
   useEffect(() => {
     if (pendingNavigation && !isSaving && badgeQueue.length === 0 && !activeBadge) {
       navigate(pendingNavigation)
@@ -117,10 +125,14 @@ function EpisodePage() {
     }
   }
 
+  // Reset quando muda de episódio
   useEffect(() => {
+    hasLoadedProgress.current = false
+    lastSaveTimeRef.current = 0
     setCurrentQuestionIndex(0)
     setSelectedAnswer(null)
     setScore(0)
+    scoreRef.current = 0
     setShowMiniModal(false)
     setShowFinalModal(false)
     setAudioTime(0)
@@ -134,28 +146,39 @@ function EpisodePage() {
     setIsSaving(false)
   }, [id, episodeId])
 
+  // Carrega progresso (UMA VEZ por episódio)
   useEffect(() => {
     async function loadProgress() {
+      if (hasLoadedProgress.current) return
+      
       if (!user || !episode) {
         setLoadingProgress(false)
         return
       }
       
-      const progress = await getProgress(id, episodeId)
-      
-      if (progress) {
-        if (progress.completed) {
-          setWasAlreadyCompleted(true)
-        } else {
-          setCurrentQuestionIndex(progress.currentQuestion || 0)
-          setScore(progress.score || 0)
-          setAudioTime(progress.audioTime || 0)
-          if ((progress.currentQuestion || 0) > 0) {
-            setShowQuiz(true)
+      try {
+        const progress = await getProgress(id, episodeId)
+        hasLoadedProgress.current = true
+        
+        if (progress) {
+          if (progress.completed) {
+            setWasAlreadyCompleted(true)
+          } else {
+            setCurrentQuestionIndex(progress.currentQuestion || 0)
+            const loadedScore = progress.score || 0
+            setScore(loadedScore)
+            scoreRef.current = loadedScore
+            setAudioTime(progress.audioTime || 0)
+            if ((progress.currentQuestion || 0) > 0) {
+              setShowQuiz(true)
+            }
           }
         }
+      } catch (err) {
+        console.error('Erro ao carregar progresso:', err)
+      } finally {
+        setLoadingProgress(false)
       }
-      setLoadingProgress(false)
     }
     
     const timer = setTimeout(loadProgress, 50)
@@ -204,48 +227,64 @@ function EpisodePage() {
   const currentQuestion = episode.questions[currentQuestionIndex]
   const isLastQuestion = currentQuestionIndex === totalQuestions - 1
 
+  // THROTTLE: Salva progresso do áudio no máximo a cada 8 segundos
   const handleTimeUpdate = (time) => {
     if (!user) return
     setAudioTime(time)
+    
+    const now = Date.now()
+    if (now - lastSaveTimeRef.current < 8000) return // Ignora se < 8s desde último save
+    lastSaveTimeRef.current = now
+    
     saveProgress(id, episodeId, {
       audioTime: time,
       currentQuestion: currentQuestionIndex,
       questionsAnswered: currentQuestionIndex,
-      score,
+      score: scoreRef.current,
       completed: wasAlreadyCompleted,
       seriesTitle: series.title,
       episodeTitle: episode.title,
       coverImage: series.coverImage
-    })
+    }).catch(err => console.error('Erro ao salvar progresso:', err))
   }
 
   const handleAnswer = async (index) => {
-    if (selectedAnswer !== null) return
+    // Guarda contra cliques duplicados
+    if (selectedAnswer !== null || isSaving) return
+    
     setSelectedAnswer(index)
     const isCorrect = index === currentQuestion.correctAnswer
     setLastAnswerCorrect(isCorrect)
     
     if (isCorrect) {
-      const newScore = score + 1
+      const newScore = scoreRef.current + 1
+      scoreRef.current = newScore
       setScore(newScore)
-      if (user) {
-        updateUserXP(10).then(badgeXP => { if (badgeXP) queueBadge(badgeXP) })
+      
+      // ANTI-FARM: Só dá XP se episódio NÃO foi completado antes
+      if (user && !wasAlreadyCompleted) {
+        updateUserXP(10)
+          .then(badgeXP => { if (badgeXP) queueBadge(badgeXP) })
+          .catch(err => console.error('Erro ao dar XP:', err))
 
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: currentQuestionIndex,
           questionsAnswered: currentQuestionIndex + 1,
           score: newScore,
-          completed: wasAlreadyCompleted,
+          completed: false,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
-        })
+        }).catch(err => console.error('Erro ao salvar progresso:', err))
       }
     }
 
-    if (user) {
-      updateStreak().then(badgeStreak => { if (badgeStreak) queueBadge(badgeStreak) })
+    // ANTI-FARM: Só atualiza streak se episódio NÃO foi completado antes
+    if (user && !wasAlreadyCompleted) {
+      updateStreak()
+        .then(badgeStreak => { if (badgeStreak) queueBadge(badgeStreak) })
+        .catch(err => console.error('Erro ao atualizar streak:', err))
     }
 
     setShowMiniModal(true)
@@ -258,7 +297,7 @@ function EpisodePage() {
       if (user) {
         setIsSaving(true)
         
-        const finalQuizScore = score
+        const finalQuizScore = scoreRef.current
         const isQuizPerfect = finalQuizScore === totalQuestions
         
         saveProgress(id, episodeId, {
@@ -270,35 +309,39 @@ function EpisodePage() {
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
-        }).then(async (badgeCompletion) => {
-          if (badgeCompletion) queueBadge(badgeCompletion)
-          
-          if (isQuizPerfect && saveQuizScore) {
-            const quizBadge = await saveQuizScore(id, episodeId, finalQuizScore, totalQuestions)
-            if (quizBadge) queueBadge(quizBadge)
-          }
-          
-          setIsSaving(false)
         })
+          .then(async (badgeCompletion) => {
+            if (badgeCompletion) queueBadge(badgeCompletion)
+            
+            // ANTI-FARM: Só checa quiz perfeito se NÃO era completado antes
+            if (isQuizPerfect && saveQuizScore && !wasAlreadyCompleted) {
+              const quizBadge = await saveQuizScore(id, episodeId, finalQuizScore, totalQuestions)
+              if (quizBadge) queueBadge(quizBadge)
+            }
+          })
+          .catch(err => console.error('Erro ao salvar progresso final:', err))
+          .finally(() => setIsSaving(false))
         
         setWasAlreadyCompleted(true)
       }
+      // Modal aparece IMEDIATAMENTE, botão mostra "Salvando..."
       setShowFinalModal(true)
     } else {
       const nextIndex = currentQuestionIndex + 1
       setCurrentQuestionIndex(nextIndex)
       setSelectedAnswer(null)
+      
       if (user) {
         saveProgress(id, episodeId, {
           audioTime,
           currentQuestion: nextIndex,
           questionsAnswered: nextIndex,
-          score,
+          score: scoreRef.current,
           completed: wasAlreadyCompleted,
           seriesTitle: series.title,
           episodeTitle: episode.title,
           coverImage: series.coverImage
-        })
+        }).catch(err => console.error('Erro ao salvar progresso:', err))
       }
     }
   }
@@ -344,15 +387,16 @@ function EpisodePage() {
         )}
         {showFinalModal && (
           <FinalModal 
-            score={score}
+            score={scoreRef.current}
             total={totalQuestions}
-            xp={score * 10}
+            xp={scoreRef.current * 10}
             onNext={handleNextEpisode}
             onRestart={() => {
               setShowFinalModal(false)
               setCurrentQuestionIndex(0)
               setSelectedAnswer(null)
               setScore(0)
+              scoreRef.current = 0
               setPendingNavigation(null)
             }}
             isLastEpisode={isLastEpisode}

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { seriesData } from '../data/series'
 import { useAuth } from '../contexts/AuthContext'
 import Header from './Header'
-import OnboardingTour, { OnboardingStorage } from './OnboardingTour'
+import OnboardingTour from './OnboardingTour'
+import { OnboardingStorage } from '../utils/onboardingStorage'
 
 // Steps do tour na SeriesPage
 const SERIES_TOUR_STEPS = [

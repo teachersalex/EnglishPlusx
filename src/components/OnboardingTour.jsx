@@ -2,35 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { OnboardingStorage } from '../utils/onboardingStorage'
 
-/**
- * Utilitário para gerenciar estado do onboarding via localStorage
- */
-export const OnboardingStorage = {
-  getStep: function() {
-    return localStorage.getItem('onboardingStep') || null
-  },
-  setStep: function(step) {
-    localStorage.setItem('onboardingStep', step)
-  },
-  isComplete: function() {
-    return localStorage.getItem('onboardingStep') === 'done'
-  },
-  complete: function() {
-    localStorage.setItem('onboardingStep', 'done')
-  },
-  reset: function() {
-    localStorage.removeItem('onboardingStep')
-  }
-}
-
-// Expõe função de reset no window para facilitar testes
-if (typeof window !== 'undefined') {
-  window.resetTutorial = () => {
-    localStorage.removeItem('onboardingStep')
-    location.reload()
-  }
-}
+// Re-export para manter compatibilidade
+export { OnboardingStorage }
 
 /**
  * Seta animada apontando para o elemento
@@ -90,15 +65,19 @@ function AnimatedArrow({ direction = 'up' }) {
  */
 function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep = 0 }) {
   const [spotlightStyle, setSpotlightStyle] = useState(null)
-  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
-  const [arrowPosition, setArrowPosition] = useState({ top: 0, left: 0 })
+  const [tooltipPosition, setTooltipPosition] = useState(null)
+  const [arrowPosition, setArrowPosition] = useState(null)
   const [arrowDirection, setArrowDirection] = useState('up')
+  const [isReady, setIsReady] = useState(false)
 
   const step = steps[currentStep]
   const isLast = currentStep === steps.length - 1
 
   useEffect(() => {
-    if (!isActive || !step?.target) return
+    if (!isActive || !step?.target) {
+      setIsReady(false)
+      return
+    }
 
     const updatePosition = () => {
       const element = document.querySelector(step.target)
@@ -106,13 +85,13 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
         const rect = element.getBoundingClientRect()
         const padding = 8
         
-        setSpotlightStyle({
-          top: rect.top - padding + window.scrollY,
+        const spotlight = {
+          top: rect.top - padding,
           left: rect.left - padding,
           width: rect.width + padding * 2,
           height: rect.height + padding * 2,
-          clientTop: rect.top - padding,
-        })
+        }
+        setSpotlightStyle(spotlight)
 
         const tooltipWidth = 300
         const tooltipHeight = 160
@@ -154,12 +133,15 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
         }
         
         // Garante que tooltip não sai da tela
+        // Margem inferior maior (40px) para não cortar no mobile
+        const marginBottom = 40
         left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin))
-        top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin))
+        top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - marginBottom))
         
         setTooltipPosition({ top, left })
         setArrowPosition({ top: aTop, left: aLeft })
         setArrowDirection(aDir)
+        setIsReady(true)
 
         // Scroll suave se necessário
         const elementTop = rect.top
@@ -218,7 +200,7 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
     onComplete()
   }
 
-  if (!isActive || !step) return null
+  if (!isActive || !step || !isReady) return null
 
   return (
     <AnimatePresence mode="wait">
@@ -232,31 +214,39 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
         {/* Overlay escuro */}
         {spotlightStyle && (
           <>
-            <div 
+            <motion.div 
               className="fixed bg-black/80 left-0 right-0 top-0"
-              style={{ height: spotlightStyle.clientTop }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ height: spotlightStyle.top }}
             />
-            <div 
+            <motion.div 
               className="fixed bg-black/80"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               style={{ 
-                top: spotlightStyle.clientTop,
+                top: spotlightStyle.top,
                 left: 0,
                 width: spotlightStyle.left,
                 height: spotlightStyle.height
               }}
             />
-            <div 
+            <motion.div 
               className="fixed bg-black/80"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               style={{ 
-                top: spotlightStyle.clientTop,
+                top: spotlightStyle.top,
                 left: spotlightStyle.left + spotlightStyle.width,
                 right: 0,
                 height: spotlightStyle.height
               }}
             />
-            <div 
+            <motion.div 
               className="fixed bg-black/80 left-0 right-0 bottom-0"
-              style={{ top: spotlightStyle.clientTop + spotlightStyle.height }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ top: spotlightStyle.top + spotlightStyle.height }}
             />
           </>
         )}
@@ -264,24 +254,16 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
         {/* Spotlight */}
         {spotlightStyle && (
           <motion.div
-            layout
             initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-              top: spotlightStyle.clientTop,
-              left: spotlightStyle.left,
-              width: spotlightStyle.width,
-              height: spotlightStyle.height,
-            }}
-            transition={{ 
-              duration: 0.4, 
-              ease: [0.25, 0.46, 0.45, 0.94],
-              layout: { duration: 0.4 }
-            }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
             onClick={handleSpotlightClick}
             className={`fixed rounded-xl ring-4 ring-white/60 ${step.allowClick ? 'cursor-pointer' : ''}`}
             style={{
+              top: spotlightStyle.top,
+              left: spotlightStyle.left,
+              width: spotlightStyle.width,
+              height: spotlightStyle.height,
               pointerEvents: step.allowClick ? 'auto' : 'none',
             }}
           >
@@ -304,28 +286,27 @@ function OnboardingTour({ steps, onComplete, onStepChange, isActive, currentStep
         )}
 
         {/* Seta animada */}
-        {spotlightStyle && step.allowClick && (
+        {arrowPosition && step.allowClick && (
           <motion.div 
             initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-              top: arrowPosition.top,
-              left: arrowPosition.left,
-            }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ 
               duration: 0.4, 
               delay: 0.25,
               ease: [0.25, 0.46, 0.45, 0.94]
             }}
             className="fixed z-20 pointer-events-none"
+            style={{
+              top: arrowPosition.top,
+              left: arrowPosition.left,
+            }}
           >
             <AnimatedArrow direction={arrowDirection} />
           </motion.div>
         )}
 
         {/* Tooltip */}
-        {spotlightStyle && (
+        {tooltipPosition && (
           <motion.div
             key={currentStep}
             initial={{ opacity: 0, y: 20, scale: 0.95 }}

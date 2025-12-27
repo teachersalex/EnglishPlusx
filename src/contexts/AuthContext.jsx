@@ -304,7 +304,13 @@ export function AuthProvider({ children }) {
     
     // Só atualiza se for melhor
     if (score > currentBestScore) {
-      await updateDoc(progressRef, { dictationBestScore: score })
+      // HOTFIX: setDoc merge cria o doc se não existir (updateDoc crashava)
+      await setDoc(progressRef, { 
+        seriesId: numericSeriesId,
+        episodeId: numericEpisodeId,
+        dictationBestScore: score,
+        lastAccess: new Date().toISOString()
+      }, { merge: true })
     }
     
     // === TUTORIAL NÃO CONTA PARA BADGES ===
@@ -315,9 +321,10 @@ export function AuthProvider({ children }) {
     // Se score 100 e é a primeira vez com 100
     if (score === 100 && currentBestScore < 100) {
       const userRef = doc(db, 'users', user.uid)
-      await updateDoc(userRef, { 
+      // HOTFIX: setDoc merge é mais seguro
+      await setDoc(userRef, { 
         perfectDictationCount: increment(1)
-      })
+      }, { merge: true })
       
       const newCount = (userData?.perfectDictationCount || 0) + 1
       setUserData(prev => ({ 
@@ -350,9 +357,10 @@ export function AuthProvider({ children }) {
     
     if (isPerfect) {
       const userRef = doc(db, 'users', user.uid)
-      await updateDoc(userRef, { 
+      // HOTFIX: setDoc merge é mais seguro
+      await setDoc(userRef, { 
         perfectQuizCount: increment(1)
-      })
+      }, { merge: true })
       
       const newCount = (userData?.perfectQuizCount || 0) + 1
       setUserData(prev => ({ 

@@ -1,5 +1,5 @@
 // src/contexts/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { auth } from '../services/firebase'
 import {
   signInWithEmailAndPassword,
@@ -34,6 +34,90 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userData, setUserData] = useState(null)
   const [loading, setLoading] = useState(true)
+  
+  // Time tracking: marca quando a sessão começou
+  const sessionStartRef = useRef(null)
+
+  // ============================================
+  // TIME TRACKING
+  // ============================================
+
+  // Salva tempo acumulado da sessão
+  const saveSessionTime = async (uid) => {
+    if (!sessionStartRef.current || !uid) return
+    
+    const now = Date.now()
+    const elapsedMs = now - sessionStartRef.current
+    const elapsedMinutes = Math.floor(elapsedMs / 60000)
+    
+    if (elapsedMinutes >= 1) {
+      try {
+        await userService.addTimeSpent(uid, elapsedMinutes)
+        await userService.addWeeklyTimeSpent(uid, elapsedMinutes)
+        // Reseta o contador para o próximo intervalo
+        sessionStartRef.current = now
+      } catch (e) {
+        console.error('[TimeTracking] Erro ao salvar tempo:', e)
+      }
+    }
+  }
+
+  // Salva tempo a cada 5 minutos
+  useEffect(() => {
+    if (!user) return
+    
+    const interval = setInterval(() => {
+      saveSessionTime(user.uid)
+    }, 5 * 60 * 1000) // 5 minutos
+    
+    return () => clearInterval(interval)
+  }, [user])
+
+  // Salva tempo ao fechar aba/navegador
+  useEffect(() => {
+    if (!user) return
+    
+    const handleBeforeUnload = () => {
+      if (sessionStartRef.current && user?.uid) {
+        const elapsedMs = Date.now() - sessionStartRef.current
+        const elapsedMinutes = Math.floor(elapsedMs / 60000)
+        
+        if (elapsedMinutes >= 1) {
+          // Usa sendBeacon para garantir envio mesmo fechando
+          // Fallback: salva no localStorage para recuperar depois
+          const data = {
+            uid: user.uid,
+            minutes: elapsedMinutes,
+            timestamp: Date.now()
+          }
+          localStorage.setItem('pendingTimeSpent', JSON.stringify(data))
+        }
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [user])
+
+  // Recupera tempo pendente do localStorage (caso fechou sem salvar)
+  useEffect(() => {
+    if (!user) return
+    
+    const pending = localStorage.getItem('pendingTimeSpent')
+    if (pending) {
+      try {
+        const data = JSON.parse(pending)
+        // Só processa se for do mesmo usuário e menos de 1 hora atrás
+        if (data.uid === user.uid && Date.now() - data.timestamp < 3600000) {
+          userService.addTimeSpent(user.uid, data.minutes)
+          userService.addWeeklyTimeSpent(user.uid, data.minutes)
+        }
+        localStorage.removeItem('pendingTimeSpent')
+      } catch (e) {
+        localStorage.removeItem('pendingTimeSpent')
+      }
+    }
+  }, [user])
 
   // ============================================
   // AUTHENTICATION
@@ -62,6 +146,11 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    // Salva tempo antes de deslogar
+    if (user?.uid) {
+      await saveSessionTime(user.uid)
+    }
+    sessionStartRef.current = null
     await signOut(auth)
     setUserData(null)
   }
@@ -273,6 +362,10 @@ export function AuthProvider({ children }) {
         const data = await userService.createOrGetUser(u.uid, u.email, u.displayName)
         setUserData(data)
         await updateStreak(u.uid)
+        // Inicia contagem de tempo da sessão
+        sessionStartRef.current = Date.now()
+      } else {
+        sessionStartRef.current = null
       }
       setLoading(false)
     })

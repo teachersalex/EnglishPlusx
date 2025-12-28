@@ -7,6 +7,7 @@ import UserStats from './UserStats'
 import OnboardingTour from './OnboardingTour'
 import { OnboardingStorage } from '../utils/onboardingStorage'
 import { useAuth } from '../contexts/AuthContext'
+import WeeklyRankingCard from '../components/WeeklyRankingCard'
 
 /**
  * Card da Série com Hierarquia Visual:
@@ -347,6 +348,11 @@ function Home() {
               diamondSeries={diamondSeries}
               completedSeriesIds={completedSeriesIds}
             />
+            
+            {/* RANKING SEMANAL - MOVIDO PARA AQUI */}
+            <div className="mb-8">
+              <WeeklyRankingCard />
+            </div>
             
             {/* A1 */}
             <SeriesRow 

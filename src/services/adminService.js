@@ -275,6 +275,76 @@ export async function getAnalytics() {
 }
 
 // ============================================
+// RANKING SEMANAL
+// ============================================
+
+const ADMIN_EMAILS = [
+  "alexmg@gmail.com",
+  "alexsbd85@gmail.com",
+  "alexalienmg@gmail.com",
+  "alexpotterbd@gmail.com"
+]
+
+/**
+ * Atualiza ranking semanal (chamado manualmente pelo admin)
+ * Salva em settings/weeklyRanking
+ */
+export async function updateWeeklyRanking() {
+  try {
+    const snapshot = await getDocs(collection(db, 'users'))
+    
+    const ranking = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(u => {
+        // Exclui admins, suspensos e roles admin
+        if (ADMIN_EMAILS.includes(u.email?.toLowerCase())) return false
+        if (u.status === 'suspended') return false
+        if (u.role === 'admin') return false
+        return true
+      })
+      .map(u => ({
+        id: u.id,
+        name: u.name || 'Aluno',
+        diamonds: u.seriesWithDiamond || 0,
+        precision: u.perfectDictationCount > 0 
+          ? Math.min(99, 85 + u.perfectDictationCount * 2) 
+          : 0,
+        weeklyTime: u.weeklyTimeSpent || 0
+      }))
+      .sort((a, b) => {
+        // Ordena por: diamantes > precisão > tempo
+        if (b.diamonds !== a.diamonds) return b.diamonds - a.diamonds
+        if (b.precision !== a.precision) return b.precision - a.precision
+        return b.weeklyTime - a.weeklyTime
+      })
+      .slice(0, 5)
+    
+    await setDoc(doc(db, 'settings', 'weeklyRanking'), {
+      ranking,
+      updatedAt: serverTimestamp()
+    })
+    
+    return ranking
+  } catch (error) {
+    console.error("Erro ao atualizar ranking:", error)
+    throw error
+  }
+}
+
+/**
+ * Busca ranking salvo
+ */
+export async function getWeeklyRanking() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'weeklyRanking'))
+    return snap.exists() ? snap.data() : { ranking: [], updatedAt: null }
+  } catch (error) {
+    console.error("Erro ao buscar ranking:", error)
+    return { ranking: [], updatedAt: null }
+  }
+}
+
+// ============================================
 // HELPERS
 // ============================================
 

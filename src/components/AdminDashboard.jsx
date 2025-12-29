@@ -14,7 +14,8 @@ import {
   getAnalytics,
   getDaysInactive,
   formatDate,
-  formatRelativeTime
+  formatRelativeTime,
+  updateWeeklyRanking
 } from '../services/adminService'
 
 const ADMIN_EMAILS = [
@@ -73,6 +74,9 @@ export default function AdminDashboard() {
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
+  
+  // Estado para atualização do ranking
+  const [updatingRanking, setUpdatingRanking] = useState(false)
 
   // Verifica admin
   useEffect(() => {
@@ -124,23 +128,47 @@ export default function AdminDashboard() {
     loadData()
   }
 
+  // Atualizar ranking
+  const handleUpdateRanking = async () => {
+    setUpdatingRanking(true)
+    try {
+      await updateWeeklyRanking()
+      alert('🏆 Ranking atualizado com sucesso!')
+    } catch (error) {
+      alert('Erro ao atualizar ranking: ' + error.message)
+    } finally {
+      setUpdatingRanking(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F0F0F0]">
       <Header />
       
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Título */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#1A1A1A]">Portal do Professor</h1>
             <p className="text-[#6B7280]">Acompanhe seus alunos</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-[#1A1A1A] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#333] transition-colors shadow-lg flex items-center gap-2"
-          >
-            <span className="text-xl">+</span> Novo Aluno
-          </button>
+          <div className="flex gap-3">
+            {/* Botão Atualizar Ranking */}
+            <button
+              onClick={handleUpdateRanking}
+              disabled={updatingRanking}
+              className="bg-[#F59E0B] text-black px-6 py-3 rounded-xl font-bold hover:bg-[#D97706] transition-colors shadow-lg flex items-center gap-2 disabled:opacity-50"
+            >
+              🏆 {updatingRanking ? 'Atualizando...' : 'Atualizar Ranking'}
+            </button>
+            {/* Botão Novo Aluno */}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-[#1A1A1A] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#333] transition-colors shadow-lg flex items-center gap-2"
+            >
+              <span className="text-xl">+</span> Novo Aluno
+            </button>
+          </div>
         </div>
 
         {/* Stats */}

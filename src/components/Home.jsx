@@ -163,12 +163,18 @@ function Home() {
   const navigate = useNavigate()
   const { user, userData, getLastProgress, getDiamondSeries } = useAuth()
   const [continueEpisode, setContinueEpisode] = useState(null)
-  const [diamondSeries, setDiamondSeries] = useState({})
+ 
   const [showTour, setShowTour] = useState(false)
   const [tourStep, setTourStep] = useState(0)
   
   // Lista de IDs completados (com fallback para array vazio)
   const completedSeriesIds = userData?.completedSeriesIds || []
+
+  // Diamantes direto do userData (sem query extra!)
+const diamondSeries = (userData?.diamondSeriesIds || []).reduce((acc, id) => {
+  acc[parseInt(id, 10)] = true
+  return acc
+}, {})
   
   // Checa se tutorial foi completado OU se é conta antiga com progresso
   // Contas antigas (xp > 0 ou totalSeriesCompleted > 0) pulam o tutorial
@@ -224,23 +230,6 @@ function Home() {
     loadContinue()
   }, [user, getLastProgress])
 
-  // Carrega diamantes
-  useEffect(() => {
-    async function loadDiamonds() {
-      if (!user || typeof getDiamondSeries !== 'function') return
-      
-      try {
-        const diamonds = await getDiamondSeries(seriesData)
-        if (diamonds) {
-          setDiamondSeries(diamonds)
-        }
-      } catch (err) {
-        console.error('Erro ao carregar diamantes:', err)
-      }
-    }
-    
-    loadDiamonds()
-  }, [user, getDiamondSeries])
 
   const handleSeriesClick = (id) => navigate(`/series/${id}`)
   

@@ -3,12 +3,6 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { getWeeklyRanking } from '../services/adminService'
 
-// Fake users no topo (sempre aparecem)
-const FAKE_LEADERS = [
-  { id: 'fake1', name: 'Maria Claudia', diamonds: 12, precision: 98, weeklyTime: 272 },
-  { id: 'fake2', name: 'João Fernando', diamonds: 10, precision: 97, weeklyTime: 195 },
-]
-
 function formatTime(minutes) {
   if (!minutes) return '0m'
   const h = Math.floor(minutes / 60)
@@ -34,8 +28,8 @@ export default function WeeklyRankingCard() {
     load()
   }, [])
 
-  // Combina fakes + reais, máximo 5
-  const fullRanking = [...FAKE_LEADERS, ...ranking].slice(0, 5)
+  // Top 5 alunos reais
+  const fullRanking = ranking.slice(0, 5)
 
   const getMedal = (index) => {
     if (index === 0) return '🥇'

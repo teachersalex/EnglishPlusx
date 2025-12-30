@@ -14,6 +14,11 @@ import { seriesActions } from './pillars/105-actions.js'
 import { seriesFirstDay } from './starter/002-first-day.js'
 import { seriesMysteryBox } from './starter/003-mystery-box.js'
 import { seriesPhotograph } from './starter/007-photograph.js'
+import { seriesFashionBoss } from './starter/008-fashion-boss.js'
+import { seriesBadDate } from './starter/009-bad-date.js'
+import { seriesGossipNeighbor } from './starter/010-gossip-neighbor.js'
+import { seriesFakeLife } from './starter/011-fake-life.js'
+import { seriesParisTrip } from './starter/012-paris-trip.js'
 
 // === 3. Level A1 (Beginner) ===
 import { seriesMidnightKey } from './a1/001-midnight-key.js'
@@ -37,6 +42,11 @@ export const seriesData = {
   ...seriesFirstDay,
   ...seriesMysteryBox,
   ...seriesPhotograph,
+  ...seriesFashionBoss,
+  ...seriesBadDate,
+  ...seriesGossipNeighbor,
+  ...seriesFakeLife,
+  ...seriesParisTrip,
   
   // A1
   ...seriesMidnightKey,
@@ -61,6 +71,11 @@ export const seriesByLevel = {
     ...Object.values(seriesFirstDay),
     ...Object.values(seriesMysteryBox),
     ...Object.values(seriesPhotograph),
+    ...Object.values(seriesFashionBoss),
+    ...Object.values(seriesBadDate),
+    ...Object.values(seriesGossipNeighbor),
+    ...Object.values(seriesFakeLife),
+    ...Object.values(seriesParisTrip),
   ],
   a1: [
     ...Object.values(seriesMidnightKey),

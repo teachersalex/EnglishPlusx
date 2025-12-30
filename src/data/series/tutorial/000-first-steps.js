@@ -15,10 +15,8 @@ export const seriesFirstSteps = {
         duration: "15 sec",
         audioUrl: "/series/tutorial/000-first-steps/e1.mp3",
         text: `Bem-vindo ao English Plus.
-Sua comunidade exclusiva de inglês.
-Ouça o áudio com atenção.
-Escreva o que você ouvir.
-Está pronto?`,
+Ouça com atenção.
+Escreva o que você ouvir.`,
         questions: [
           {
             id: 1,

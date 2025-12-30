@@ -1,6 +1,6 @@
 /**
  * SISTEMA DE BADGES v13 — EXPANSÃO
- * 15 badges no total (10 originais + 5 novas)
+ * 18 badges no total (10 originais + 8 novas)
  * 
  * Regras:
  * - 1 badge por ação (nunca sobrepõe)
@@ -8,7 +8,7 @@
  */
 
 // ============================================
-// DEFINIÇÕES (15 BADGES)
+// DEFINIÇÕES (18 BADGES)
 // ============================================
 export const BADGE_DEFINITIONS = {
   // === TRILHA DOS DIAMANTES (ao completar série ≥95%) ===
@@ -56,6 +56,15 @@ export const BADGE_DEFINITIONS = {
     category: 'diamond',
     isEpic: true,
     requirement: { type: 'diamonds', count: 7 }
+  },
+  dez_diamantes: {
+    id: 'dez_diamantes',
+    name: 'Dez Diamantes',
+    icon: '💎',
+    description: '10 séries diamante. Colecionador de diamantes!',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 10 }
   },
 
   // === TRILHA DE PRECISÃO (ao fazer ditado 100%) ===
@@ -124,6 +133,24 @@ export const BADGE_DEFINITIONS = {
     isEpic: true,
     requirement: { type: 'seriesCompleted', count: 10 }
   },
+  doze_series: {
+    id: 'doze_series',
+    name: 'Doze Séries',
+    icon: '📚',
+    description: '12 séries completas. Dedicação total!',
+    category: 'volume',
+    isEpic: true,
+    requirement: { type: 'seriesCompleted', count: 12 }
+  },
+  quinze_series: {
+    id: 'quinze_series',
+    name: 'Quinze Séries',
+    icon: '🏅',
+    description: '15 séries completas. Mestre do English+!',
+    category: 'volume',
+    isEpic: true,
+    requirement: { type: 'seriesCompleted', count: 15 }
+  },
 
   // === TRILHA DE QUIZ ===
   quiz_master: {
@@ -159,12 +186,13 @@ export const BADGE_DEFINITIONS = {
 
 // Ordem de exibição na vitrine (agrupado por categoria)
 export const BADGE_DISPLAY_ORDER = [
-  // Diamantes (5)
+  // Diamantes (6)
   'primeiro_diamante',
   'ouvido_afiado',
   'tres_diamantes',
   'lenda',
   'diamante_supremo',
+  'dez_diamantes',
   // Precisão (3)
   'mao_quente',
   'vinte_cinco_perfeitos',
@@ -172,11 +200,13 @@ export const BADGE_DISPLAY_ORDER = [
   // Quiz (2)
   'quiz_master',
   'trinta_quizzes',
-  // Volume (4)
+  // Volume (6)
   'quatro_series',
   'seis_series',
   'oito_series',
   'dez_series',
+  'doze_series',
+  'quinze_series',
   // Streak (1)
   'semana_perfeita'
 ]
@@ -193,6 +223,9 @@ export function checkSeriesCompletionBadge(context, currentBadges = []) {
   const { seriesWithDiamond, totalSeriesCompleted } = context
   
   // Trilha dos Diamantes (prioridade: mais raro primeiro)
+  if (seriesWithDiamond >= 10 && !currentBadges.includes('dez_diamantes')) {
+    return 'dez_diamantes'
+  }
   if (seriesWithDiamond >= 7 && !currentBadges.includes('diamante_supremo')) {
     return 'diamante_supremo'
   }
@@ -210,6 +243,12 @@ export function checkSeriesCompletionBadge(context, currentBadges = []) {
   }
   
   // Trilha de Volume (só se não ganhou diamante)
+  if (totalSeriesCompleted >= 15 && !currentBadges.includes('quinze_series')) {
+    return 'quinze_series'
+  }
+  if (totalSeriesCompleted >= 12 && !currentBadges.includes('doze_series')) {
+    return 'doze_series'
+  }
   if (totalSeriesCompleted >= 10 && !currentBadges.includes('dez_series')) {
     return 'dez_series'
   }

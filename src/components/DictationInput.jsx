@@ -60,6 +60,11 @@ export default function DictationInput({
     typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 150)
   }, [userText, typingSoundEnabled, setUserText])
 
+  // Bloqueia paste
+  const handlePaste = useCallback((e) => {
+    e.preventDefault()
+  }, [])
+
   // Toggle som de digitação
   const toggleTypingSound = () => {
     const newState = typingSound.toggle()
@@ -139,6 +144,7 @@ export default function DictationInput({
             ref={textareaRef}
             value={userText}
             onChange={handleTextChange}
+            onPaste={handlePaste}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder="Ouça o áudio e escreva o que você entende..."

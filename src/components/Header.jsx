@@ -8,7 +8,7 @@ export default function Header({ showBack, backTo }) {
   const { user, userData, logout } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
 
-  // 🔒 LISTA VIP: Seus emails que podem ver o botão
+  // 🔑 LISTA VIP: Seus emails que podem ver o botão
   const ADMIN_EMAILS = [
     "alexmg@gmail.com", 
     "alexsbd85@gmail.com",
@@ -34,12 +34,19 @@ export default function Header({ showBack, backTo }) {
             <div className="w-16" /> 
           )}
           
+          {/* Logo + Early Access Tag */}
           <div 
             onClick={() => navigate('/')} 
-            className="cursor-pointer flex items-center select-none"
+            className="cursor-pointer flex flex-col items-center select-none"
           >
-            <span className="font-bold text-white text-lg">Teacher Alex</span>
-            <span className="font-bold text-[#E50914] text-lg ml-1">ENGLISH+</span>
+            <div className="flex items-center">
+              <span className="font-bold text-white text-lg">Teacher Alex</span>
+              <span className="font-bold text-[#E50914] text-lg ml-1">ENGLISH+</span>
+            </div>
+            {/* Early Access Tag */}
+            <span className="text-[10px] text-amber-400/80 tracking-wider mt-0.5">
+              Early Access Preview — Acesso Antecipado
+            </span>
           </div>
           
           {user ? (

@@ -167,16 +167,35 @@ export function AuthProvider({ children }) {
 
   async function updateStreak(overrideUid = null) {
     const uid = overrideUid || user?.uid
-    if (!uid) return
+    if (!uid) return null
 
     const result = await userService.calculateAndUpdateStreak(uid)
     if (result) {
+      // Atualiza state local
       setUserData(prev => ({
         ...prev,
         streak: result.streak,
         lastActivity: result.lastActivity
       }))
+
+      // v13: Verifica badge de streak (Semana Perfeita = 7 dias)
+      const updatedUserData = {
+        ...userData,
+        streak: result.streak,
+        badges: userData?.badges || []
+      }
+      
+      const badge = await gamificationService.checkStreakBadge(uid, updatedUserData)
+      if (badge) {
+        setUserData(prev => ({
+          ...prev,
+          badges: [...(prev?.badges || []), badge]
+        }))
+        return badge // Retorna badge conquistada
+      }
     }
+    
+    return null
   }
 
   // ============================================

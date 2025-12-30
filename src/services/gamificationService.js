@@ -6,6 +6,7 @@ import {
   checkSeriesCompletionBadge,
   checkDictationBadge,
   checkQuizBadge,
+  checkStreakBadge,
   buildBadgeContext
 } from '../utils/badgeSystem'
 
@@ -18,16 +19,13 @@ const TUTORIAL_SERIES_ID = 0
  * - Evitar duplicação de badges (race condition fix)
  * - Gerenciar fila de badges para exibição
  * 
- * DIFERENÇA DO CÓDIGO ORIGINAL:
- * - Usa arrayUnion() para evitar race conditions
- * - Uma única função genérica checkAndAwardBadge()
- * - Consolidar 3 funções idênticas em 1
+ * v13: Adicionado suporte a checkStreakBadge
  */
 
 export const gamificationService = {
   /**
    * Função genérica para verificar e conceder badges
-   * Tipo pode ser: 'series' | 'dictation' | 'quiz'
+   * Tipo pode ser: 'series' | 'dictation' | 'quiz' | 'streak'
    * 
    * Usando arrayUnion() em vez de read-then-write para evitar race conditions
    */
@@ -46,6 +44,9 @@ export const gamificationService = {
       case 'quiz':
         checkFunction = checkQuizBadge
         break
+      case 'streak':
+        checkFunction = checkStreakBadge
+        break
       default:
         console.warn(`[gamificationService] Tipo de badge desconhecido: ${badgeType}`)
         return null
@@ -59,7 +60,7 @@ export const gamificationService = {
       
       // ✅ HOTFIX DE RACE CONDITION:
       // arrayUnion() adiciona à array de forma atômica
-      // Evita que 2 requisições simultâneas duplicuem a badge
+      // Evita que 2 requisições simultâneas dupliquem a badge
       try {
         await updateDoc(userRef, {
           badges: arrayUnion(newBadge)
@@ -78,7 +79,6 @@ export const gamificationService = {
 
   /**
    * Verifica badge de conclusão de série
-   * Wrapper da função acima para clareza
    */
   async checkSeriesBadge(uid, userData) {
     if (!userData) return null
@@ -114,6 +114,19 @@ export const gamificationService = {
   },
 
   /**
+   * Verifica badge de streak (7 dias seguidos)
+   * NOVO na v13
+   */
+  async checkStreakBadge(uid, userData) {
+    if (!userData) return null
+
+    const context = buildBadgeContext(userData)
+    const currentBadges = userData.badges || []
+
+    return this.checkAndAwardBadge(uid, 'streak', context, currentBadges)
+  },
+
+  /**
    * Retorna lista de badges conquistadas
    */
   async getUserBadges(uid) {
@@ -136,38 +149,39 @@ export const gamificationService = {
    * Retorna { badgeId: { current, needed, percentage } }
    */
   calculateBadgeProgress(userData) {
-    const context = buildBadgeContext(userData)
     const progress = {}
 
     // Iterar sobre todas as badges e calcular progresso
-    for (const badge of BADGE_DEFINITIONS) {
-      const badgeId = badge.id
+    for (const [badgeId, badge] of Object.entries(BADGE_DEFINITIONS)) {
+      if (!badge.requirement) continue
 
-      // Lógica de progresso depende do tipo
-      if (badge.type === 'series_count') {
-        progress[badgeId] = {
-          current: userData.totalSeriesCompleted || 0,
-          needed: badge.requirement,
-          percentage: Math.round(((userData.totalSeriesCompleted || 0) / badge.requirement) * 100)
-        }
-      } else if (badge.type === 'diamond_count') {
-        progress[badgeId] = {
-          current: userData.seriesWithDiamond || 0,
-          needed: badge.requirement,
-          percentage: Math.round(((userData.seriesWithDiamond || 0) / badge.requirement) * 100)
-        }
-      } else if (badge.type === 'dictation_perfect') {
-        progress[badgeId] = {
-          current: userData.perfectDictationCount || 0,
-          needed: badge.requirement,
-          percentage: Math.round(((userData.perfectDictationCount || 0) / badge.requirement) * 100)
-        }
-      } else if (badge.type === 'quiz_perfect') {
-        progress[badgeId] = {
-          current: userData.perfectQuizCount || 0,
-          needed: badge.requirement,
-          percentage: Math.round(((userData.perfectQuizCount || 0) / badge.requirement) * 100)
-        }
+      const { type, count } = badge.requirement
+      let current = 0
+
+      switch (type) {
+        case 'diamonds':
+          current = userData?.seriesWithDiamond || 0
+          break
+        case 'perfectDictations':
+          current = userData?.perfectDictationCount || 0
+          break
+        case 'seriesCompleted':
+          current = userData?.totalSeriesCompleted || 0
+          break
+        case 'perfectQuizzes':
+          current = userData?.perfectQuizCount || 0
+          break
+        case 'streak':
+          current = userData?.streak || 0
+          break
+        default:
+          continue
+      }
+
+      progress[badgeId] = {
+        current: Math.min(current, count),
+        needed: count,
+        percentage: Math.min(100, Math.round((current / count) * 100))
       }
     }
 

@@ -1,6 +1,6 @@
 /**
- * SISTEMA DE BADGES v12 — PROGRESSÃO MUSICAL
- * Espaçamento correto: 1 badge por marco, nunca sobrepõe
+ * SISTEMA DE BADGES v13 — EXPANSÃO
+ * 15 badges no total (10 originais + 5 novas)
  * 
  * Regras:
  * - 1 badge por ação (nunca sobrepõe)
@@ -8,7 +8,7 @@
  */
 
 // ============================================
-// DEFINIÇÕES (10 BADGES)
+// DEFINIÇÕES (15 BADGES)
 // ============================================
 export const BADGE_DEFINITIONS = {
   // === TRILHA DOS DIAMANTES (ao completar série ≥95%) ===
@@ -18,7 +18,7 @@ export const BADGE_DEFINITIONS = {
     icon: '💎',
     description: 'Sua primeira série com média ≥95% no ditado.',
     category: 'diamond',
-    isEpic: true,
+    isEpic: false,
     requirement: { type: 'diamonds', count: 1 }
   },
   ouvido_afiado: {
@@ -27,7 +27,7 @@ export const BADGE_DEFINITIONS = {
     icon: '👂',
     description: '2 séries com média ≥95%. Você ouve cada detalhe!',
     category: 'diamond',
-    isEpic: true,
+    isEpic: false,
     requirement: { type: 'diamonds', count: 2 }
   },
   tres_diamantes: {
@@ -36,17 +36,26 @@ export const BADGE_DEFINITIONS = {
     icon: '💎',
     description: '3 séries diamante. Consistência absurda!',
     category: 'diamond',
-    isEpic: true,
+    isEpic: false,
     requirement: { type: 'diamonds', count: 3 }
   },
   lenda: {
     id: 'lenda',
     name: 'Lenda',
     icon: '🏆',
-    description: '5 séries diamante. Você zerou o jogo!',
+    description: '5 séries diamante. Você é uma lenda!',
     category: 'diamond',
     isEpic: true,
     requirement: { type: 'diamonds', count: 5 }
+  },
+  diamante_supremo: {
+    id: 'diamante_supremo',
+    name: 'Diamante Supremo',
+    icon: '👑',
+    description: '7 séries diamante. Nível supremo alcançado!',
+    category: 'diamond',
+    isEpic: true,
+    requirement: { type: 'diamonds', count: 7 }
   },
 
   // === TRILHA DE PRECISÃO (ao fazer ditado 100%) ===
@@ -68,6 +77,15 @@ export const BADGE_DEFINITIONS = {
     isEpic: true,
     requirement: { type: 'perfectDictations', count: 25 }
   },
+  cinquenta_perfeitos: {
+    id: 'cinquenta_perfeitos',
+    name: 'Cinquenta Perfeitos',
+    icon: '💯',
+    description: '50 ditados 100%. Ouvido de elite!',
+    category: 'precision',
+    isEpic: true,
+    requirement: { type: 'perfectDictations', count: 50 }
+  },
 
   // === TRILHA DE VOLUME (ao completar série) ===
   quatro_series: {
@@ -88,10 +106,19 @@ export const BADGE_DEFINITIONS = {
     isEpic: false,
     requirement: { type: 'seriesCompleted', count: 6 }
   },
+  oito_series: {
+    id: 'oito_series',
+    name: 'Oito Séries',
+    icon: '📖',
+    description: '8 séries completas. Quase lá!',
+    category: 'volume',
+    isEpic: false,
+    requirement: { type: 'seriesCompleted', count: 8 }
+  },
   dez_series: {
     id: 'dez_series',
     name: 'Dez Séries',
-    icon: '📚',
+    icon: '🎓',
     description: '10 séries completas. Veterano!',
     category: 'volume',
     isEpic: true,
@@ -105,23 +132,53 @@ export const BADGE_DEFINITIONS = {
     icon: '🧠',
     description: '15 quizzes perfeitos. Cérebro afiado!',
     category: 'quiz',
-    isEpic: true,
+    isEpic: false,
     requirement: { type: 'perfectQuizzes', count: 15 }
+  },
+  trinta_quizzes: {
+    id: 'trinta_quizzes',
+    name: 'Trinta Quizzes',
+    icon: '🧠',
+    description: '30 quizzes perfeitos. Mente brilhante!',
+    category: 'quiz',
+    isEpic: true,
+    requirement: { type: 'perfectQuizzes', count: 30 }
+  },
+
+  // === TRILHA DE CONSISTÊNCIA (streak) ===
+  semana_perfeita: {
+    id: 'semana_perfeita',
+    name: 'Semana Perfeita',
+    icon: '📅',
+    description: '7 dias seguidos estudando. Consistência é tudo!',
+    category: 'streak',
+    isEpic: true,
+    requirement: { type: 'streak', count: 7 }
   }
 }
 
-// Ordem de exibição na vitrine
+// Ordem de exibição na vitrine (agrupado por categoria)
 export const BADGE_DISPLAY_ORDER = [
+  // Diamantes (5)
   'primeiro_diamante',
   'ouvido_afiado',
   'tres_diamantes',
   'lenda',
+  'diamante_supremo',
+  // Precisão (3)
   'mao_quente',
   'vinte_cinco_perfeitos',
+  'cinquenta_perfeitos',
+  // Quiz (2)
   'quiz_master',
+  'trinta_quizzes',
+  // Volume (4)
   'quatro_series',
   'seis_series',
-  'dez_series'
+  'oito_series',
+  'dez_series',
+  // Streak (1)
+  'semana_perfeita'
 ]
 
 // ============================================
@@ -136,6 +193,9 @@ export function checkSeriesCompletionBadge(context, currentBadges = []) {
   const { seriesWithDiamond, totalSeriesCompleted } = context
   
   // Trilha dos Diamantes (prioridade: mais raro primeiro)
+  if (seriesWithDiamond >= 7 && !currentBadges.includes('diamante_supremo')) {
+    return 'diamante_supremo'
+  }
   if (seriesWithDiamond >= 5 && !currentBadges.includes('lenda')) {
     return 'lenda'
   }
@@ -153,6 +213,9 @@ export function checkSeriesCompletionBadge(context, currentBadges = []) {
   if (totalSeriesCompleted >= 10 && !currentBadges.includes('dez_series')) {
     return 'dez_series'
   }
+  if (totalSeriesCompleted >= 8 && !currentBadges.includes('oito_series')) {
+    return 'oito_series'
+  }
   if (totalSeriesCompleted >= 6 && !currentBadges.includes('seis_series')) {
     return 'seis_series'
   }
@@ -169,6 +232,10 @@ export function checkSeriesCompletionBadge(context, currentBadges = []) {
 export function checkDictationBadge(context, currentBadges = []) {
   const { perfectDictationCount } = context
   
+  // Prioridade: mais raro primeiro
+  if (perfectDictationCount >= 50 && !currentBadges.includes('cinquenta_perfeitos')) {
+    return 'cinquenta_perfeitos'
+  }
   if (perfectDictationCount >= 25 && !currentBadges.includes('vinte_cinco_perfeitos')) {
     return 'vinte_cinco_perfeitos'
   }
@@ -185,8 +252,25 @@ export function checkDictationBadge(context, currentBadges = []) {
 export function checkQuizBadge(context, currentBadges = []) {
   const { perfectQuizCount } = context
   
+  // Prioridade: mais raro primeiro
+  if (perfectQuizCount >= 30 && !currentBadges.includes('trinta_quizzes')) {
+    return 'trinta_quizzes'
+  }
   if (perfectQuizCount >= 15 && !currentBadges.includes('quiz_master')) {
     return 'quiz_master'
+  }
+  
+  return null
+}
+
+/**
+ * Ao atualizar STREAK
+ */
+export function checkStreakBadge(context, currentBadges = []) {
+  const { streak } = context
+  
+  if (streak >= 7 && !currentBadges.includes('semana_perfeita')) {
+    return 'semana_perfeita'
   }
   
   return null
@@ -220,6 +304,9 @@ export function getBadgeProgress(badgeId, userData) {
     case 'perfectQuizzes':
       current = userData?.perfectQuizCount || 0
       break
+    case 'streak':
+      current = userData?.streak || 0
+      break
     default:
       return null
   }
@@ -240,6 +327,7 @@ export function buildBadgeContext(userData, additionalContext = {}) {
     totalSeriesCompleted: userData?.totalSeriesCompleted || 0,
     perfectDictationCount: userData?.perfectDictationCount || 0,
     perfectQuizCount: userData?.perfectQuizCount || 0,
+    streak: userData?.streak || 0,
     ...additionalContext
   }
 }

@@ -27,7 +27,7 @@ export const gamificationService = {
    * Função genérica para verificar e conceder badges
    * Tipo pode ser: 'series' | 'dictation' | 'quiz' | 'streak'
    * 
-   * Usando arrayUnion() em vez de read-then-write para evitar race conditions
+   * v14: Suporta retorno de array (múltiplas badges)
    */
   async checkAndAwardBadge(uid, badgeType, context, currentBadges) {
     if (!uid || !badgeType || !context) return null
@@ -58,33 +58,43 @@ export const gamificationService = {
     }
 
     // Verifica se merece novo badge (usa freshBadges do Firebase!)
-    const newBadge = checkFunction(context, freshBadges)
-
-    if (newBadge) {
+    const result = checkFunction(context, freshBadges)
+    
+    if (!result) return null
+    
+    // Normaliza para array
+    const badgesToAward = Array.isArray(result) ? result : [result]
+    const awardedBadges = []
+    
+    for (const badge of badgesToAward) {
       // Double-check: já tem essa badge no Firebase?
-      if (freshBadges.includes(newBadge)) {
-        console.log(`[gamificationService] Badge ${newBadge} já existe, ignorando`)
-        return null
+      if (freshBadges.includes(badge)) {
+        console.log(`[gamificationService] Badge ${badge} já existe, ignorando`)
+        continue
       }
       
       try {
         await updateDoc(userRef, {
-          badges: arrayUnion(newBadge)
+          badges: arrayUnion(badge)
         })
         
-        console.log(`[gamificationService] Badge concedida: ${newBadge}`)
-        return newBadge
+        console.log(`[gamificationService] Badge concedida: ${badge}`)
+        awardedBadges.push(badge)
+        freshBadges.push(badge) // Atualiza local pra não duplicar no loop
       } catch (e) {
         console.error(`[gamificationService] Erro ao conceder badge:`, e)
-        return null
       }
     }
 
-    return null // Nenhum novo badge
+    // Retorna array se múltiplas, string se uma, null se nenhuma
+    if (awardedBadges.length === 0) return null
+    if (awardedBadges.length === 1) return awardedBadges[0]
+    return awardedBadges
   },
 
   /**
    * Verifica badge de conclusão de série
+   * Retorna apenas 1 badge por vez (ciclo de dopamina)
    */
   async checkSeriesBadge(uid, userData) {
     if (!userData) return null

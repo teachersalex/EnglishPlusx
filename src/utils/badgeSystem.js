@@ -124,32 +124,32 @@ export const BADGE_DEFINITIONS = {
     isEpic: false,
     requirement: { type: 'seriesCompleted', count: 8 }
   },
-  dez_series: {
-    id: 'dez_series',
-    name: 'Dez Séries',
+  onze_series: {
+    id: 'onze_series',
+    name: 'Onze Séries',
     icon: '🎓',
-    description: '10 séries completas. Veterano!',
+    description: '11 séries completas. Veterano!',
     category: 'volume',
     isEpic: true,
-    requirement: { type: 'seriesCompleted', count: 10 }
+    requirement: { type: 'seriesCompleted', count: 11 }
   },
-  doze_series: {
-    id: 'doze_series',
-    name: 'Doze Séries',
+  treze_series: {
+    id: 'treze_series',
+    name: 'Treze Séries',
     icon: '📚',
-    description: '12 séries completas. Dedicação total!',
+    description: '13 séries completas. Dedicação total!',
     category: 'volume',
     isEpic: true,
-    requirement: { type: 'seriesCompleted', count: 12 }
+    requirement: { type: 'seriesCompleted', count: 13 }
   },
-  quinze_series: {
-    id: 'quinze_series',
-    name: 'Quinze Séries',
+  dezesseis_series: {
+    id: 'dezesseis_series',
+    name: 'Dezesseis Séries',
     icon: '🏅',
-    description: '15 séries completas. Mestre do English+!',
+    description: '16 séries completas. Mestre do English+!',
     category: 'volume',
     isEpic: true,
-    requirement: { type: 'seriesCompleted', count: 15 }
+    requirement: { type: 'seriesCompleted', count: 16 }
   },
 
   // === TRILHA DE QUIZ ===
@@ -204,9 +204,9 @@ export const BADGE_DISPLAY_ORDER = [
   'quatro_series',
   'seis_series',
   'oito_series',
-  'dez_series',
-  'doze_series',
-  'quinze_series',
+  'onze_series',
+  'treze_series',
+  'dezesseis_series',
   // Streak (1)
   'semana_perfeita'
 ]
@@ -217,52 +217,43 @@ export const BADGE_DISPLAY_ORDER = [
 
 /**
  * Ao completar SÉRIE (verifica diamantes E volume)
- * Prioridade: Diamante > Volume
+ * v14: Retorna ARRAY de badges (pode dar duas se inevitável)
  */
 export function checkSeriesCompletionBadge(context, currentBadges = []) {
   const { seriesWithDiamond, totalSeriesCompleted } = context
+  const badges = []
   
-  // Trilha dos Diamantes (prioridade: mais raro primeiro)
+  // Trilha dos Diamantes (só a mais alta pendente)
   if (seriesWithDiamond >= 10 && !currentBadges.includes('dez_diamantes')) {
-    return 'dez_diamantes'
-  }
-  if (seriesWithDiamond >= 7 && !currentBadges.includes('diamante_supremo')) {
-    return 'diamante_supremo'
-  }
-  if (seriesWithDiamond >= 5 && !currentBadges.includes('lenda')) {
-    return 'lenda'
-  }
-  if (seriesWithDiamond >= 3 && !currentBadges.includes('tres_diamantes')) {
-    return 'tres_diamantes'
-  }
-  if (seriesWithDiamond >= 2 && !currentBadges.includes('ouvido_afiado')) {
-    return 'ouvido_afiado'
-  }
-  if (seriesWithDiamond >= 1 && !currentBadges.includes('primeiro_diamante')) {
-    return 'primeiro_diamante'
+    badges.push('dez_diamantes')
+  } else if (seriesWithDiamond >= 7 && !currentBadges.includes('diamante_supremo')) {
+    badges.push('diamante_supremo')
+  } else if (seriesWithDiamond >= 5 && !currentBadges.includes('lenda')) {
+    badges.push('lenda')
+  } else if (seriesWithDiamond >= 3 && !currentBadges.includes('tres_diamantes')) {
+    badges.push('tres_diamantes')
+  } else if (seriesWithDiamond >= 2 && !currentBadges.includes('ouvido_afiado')) {
+    badges.push('ouvido_afiado')
+  } else if (seriesWithDiamond >= 1 && !currentBadges.includes('primeiro_diamante')) {
+    badges.push('primeiro_diamante')
   }
   
-  // Trilha de Volume (só se não ganhou diamante)
-  if (totalSeriesCompleted >= 15 && !currentBadges.includes('quinze_series')) {
-    return 'quinze_series'
-  }
-  if (totalSeriesCompleted >= 12 && !currentBadges.includes('doze_series')) {
-    return 'doze_series'
-  }
-  if (totalSeriesCompleted >= 10 && !currentBadges.includes('dez_series')) {
-    return 'dez_series'
-  }
-  if (totalSeriesCompleted >= 8 && !currentBadges.includes('oito_series')) {
-    return 'oito_series'
-  }
-  if (totalSeriesCompleted >= 6 && !currentBadges.includes('seis_series')) {
-    return 'seis_series'
-  }
-  if (totalSeriesCompleted >= 4 && !currentBadges.includes('quatro_series')) {
-    return 'quatro_series'
+  // Trilha de Volume (só a mais alta pendente)
+  if (totalSeriesCompleted >= 16 && !currentBadges.includes('dezesseis_series')) {
+    badges.push('dezesseis_series')
+  } else if (totalSeriesCompleted >= 13 && !currentBadges.includes('treze_series')) {
+    badges.push('treze_series')
+  } else if (totalSeriesCompleted >= 11 && !currentBadges.includes('onze_series')) {
+    badges.push('onze_series')
+  } else if (totalSeriesCompleted >= 8 && !currentBadges.includes('oito_series')) {
+    badges.push('oito_series')
+  } else if (totalSeriesCompleted >= 6 && !currentBadges.includes('seis_series')) {
+    badges.push('seis_series')
+  } else if (totalSeriesCompleted >= 4 && !currentBadges.includes('quatro_series')) {
+    badges.push('quatro_series')
   }
   
-  return null
+  return badges.length > 0 ? badges : null
 }
 
 /**

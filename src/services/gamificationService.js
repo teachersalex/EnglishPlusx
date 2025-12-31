@@ -19,7 +19,7 @@ const TUTORIAL_SERIES_ID = 0
  * - Evitar duplicação de badges (race condition fix)
  * - Gerenciar fila de badges para exibição
  * 
- * v13: Adicionado suporte a checkStreakBadge
+ * v14: Fix bug de badge repetida (busca freshBadges do Firebase)
  */
 
 export const gamificationService = {
@@ -31,6 +31,11 @@ export const gamificationService = {
    */
   async checkAndAwardBadge(uid, badgeType, context, currentBadges) {
     if (!uid || !badgeType || !context) return null
+
+    // 🔧 FIX v14: Busca badges ATUAIS do Firebase, não confia no state local
+    const userRef = doc(db, 'users', uid)
+    const userSnap = await getDoc(userRef)
+    const freshBadges = userSnap.data()?.badges || []
 
     // Seleciona a função verificadora correta
     let checkFunction
@@ -52,15 +57,16 @@ export const gamificationService = {
         return null
     }
 
-    // Verifica se merece novo badge
-    const newBadge = checkFunction(context, currentBadges)
+    // Verifica se merece novo badge (usa freshBadges do Firebase!)
+    const newBadge = checkFunction(context, freshBadges)
 
     if (newBadge) {
-      const userRef = doc(db, 'users', uid)
+      // Double-check: já tem essa badge no Firebase?
+      if (freshBadges.includes(newBadge)) {
+        console.log(`[gamificationService] Badge ${newBadge} já existe, ignorando`)
+        return null
+      }
       
-      // ✅ HOTFIX DE RACE CONDITION:
-      // arrayUnion() adiciona à array de forma atômica
-      // Evita que 2 requisições simultâneas dupliquem a badge
       try {
         await updateDoc(userRef, {
           badges: arrayUnion(newBadge)

@@ -17,13 +17,7 @@ import {
   formatRelativeTime,
   updateWeeklyRanking
 } from '../services/adminService'
-
-const ADMIN_EMAILS = [
-  "alexmg@gmail.com",
-  "alexsbd85@gmail.com",
-  "alexalienmg@gmail.com",
-  "alexpotterbd@gmail.com"
-]
+import { ADMIN_EMAILS } from '../constants'
 
 // Componentes inline pequenos
 const StatCard = ({ icon, value, label, color = 'gray' }) => {

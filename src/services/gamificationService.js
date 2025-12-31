@@ -10,8 +10,6 @@ import {
   buildBadgeContext
 } from '../utils/badgeSystem'
 
-const TUTORIAL_SERIES_ID = 0
-
 /**
  * gamificationService.js
  * Responsável por:

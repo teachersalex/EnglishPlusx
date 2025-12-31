@@ -20,6 +20,9 @@ import { gamificationService } from '../services/gamificationService'
 // Badge definitions
 import { BADGE_DEFINITIONS } from '../utils/badgeSystem'
 
+// Constantes globais
+import { TUTORIAL_SERIES_ID } from '../constants'
+
 export { BADGE_DEFINITIONS }
 
 const AuthContext = createContext()
@@ -27,8 +30,6 @@ const AuthContext = createContext()
 export function useAuth() {
   return useContext(AuthContext)
 }
-
-const TUTORIAL_SERIES_ID = 0
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)

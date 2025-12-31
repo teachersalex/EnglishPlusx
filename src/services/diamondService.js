@@ -7,9 +7,7 @@ import {
   collection,
   getDocs
 } from 'firebase/firestore'
-
-const TUTORIAL_SERIES_ID = 0
-const DIAMOND_THRESHOLD = 95 // Precisa de 95% média
+import { TUTORIAL_SERIES_ID, DIAMOND_THRESHOLD } from '../constants'
 
 /**
  * diamondService.js

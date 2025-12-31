@@ -1,6 +1,7 @@
 // src/services/userService.js
 import { db } from './firebase'
 import { doc, getDoc, setDoc, updateDoc, increment, collection, getDocs } from 'firebase/firestore'
+import { ADMIN_EMAILS } from '../constants'
 
 /**
  * userService.js
@@ -10,6 +11,10 @@ import { doc, getDoc, setDoc, updateDoc, increment, collection, getDocs } from '
  * - Calcular e atualizar Streak
  * - Gerenciar Badges do usuário
  * - Buscar Ranking Semanal
+ * 
+ * v15: Campos para precisão real
+ * - totalDictationScore: soma de todos os scores
+ * - totalDictationCount: quantidade de ditados feitos
  */
 
 export const userService = {
@@ -34,6 +39,10 @@ export const userService = {
         perfectQuizCount: 0,
         completedSeriesIds: [],
         diamondSeriesIds: [],
+        // v15: Campos para precisão real no ranking
+        totalDictationScore: 0,
+        totalDictationCount: 0,
+        // Time tracking
         totalTimeSpent: 0,
         weeklyTimeSpent: 0,
         weeklyTimeStart: null,
@@ -147,15 +156,12 @@ export const userService = {
 
   /**
    * Busca ranking semanal (exclui admins)
+   * 
+   * v15: Precisão REAL (média dos ditados)
+   * - Antes: fórmula fake (85 + perfectCount * 2)
+   * - Agora: totalDictationScore / totalDictationCount
    */
   async getWeeklyRanking(excludeUid = null) {
-    const ADMIN_EMAILS = [
-      "alexmg@gmail.com",
-      "alexsbd85@gmail.com", 
-      "alexalienmg@gmail.com",
-      "alexpotterbd@gmail.com"
-    ]
-    
     const usersRef = collection(db, 'users')
     const snapshot = await getDocs(usersRef)
     
@@ -174,8 +180,9 @@ export const userService = {
         id: u.id,
         name: u.name || 'Aluno',
         diamonds: u.seriesWithDiamond || 0,
-        precision: u.perfectDictationCount > 0 
-          ? Math.min(99, 85 + Math.floor(u.perfectDictationCount * 2)) 
+        // v15: Precisão REAL
+        precision: u.totalDictationCount > 0 
+          ? Math.round(u.totalDictationScore / u.totalDictationCount) 
           : 0,
         weeklyTime: u.weeklyTimeSpent || 0
       }))

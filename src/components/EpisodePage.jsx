@@ -10,6 +10,7 @@ import Header from './Header'
 import AudioPlayer from './AudioPlayer'
 import OnboardingTour from './OnboardingTour'
 import { OnboardingStorage } from '../utils/onboardingStorage'
+import { TUTORIAL_SERIES_ID } from '../constants'
 
 // Steps do tour no EpisodePage
 const EPISODE_TOUR_STEPS = [
@@ -93,7 +94,7 @@ function EpisodePage() {
   const episode = series?.episodes.find(ep => ep.id === parseInt(episodeId))
   const totalQuestions = episode?.questions.length || 0
   
-  const isTutorial = parseInt(id, 10) === 0
+  const isTutorial = parseInt(id, 10) === TUTORIAL_SERIES_ID
 
   // Ativa tour se estiver no passo 'episode'
   useEffect(() => {

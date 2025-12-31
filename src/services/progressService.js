@@ -12,8 +12,7 @@ import {
   getDocs, 
   increment 
 } from 'firebase/firestore'
-
-const TUTORIAL_SERIES_ID = 0
+import { TUTORIAL_SERIES_ID } from '../constants'
 
 /**
  * progressService.js
@@ -27,6 +26,11 @@ const TUTORIAL_SERIES_ID = 0
  * 1. increment() com updateDoc, NÃO setDoc
  * 2. Mantém sincronismo entre salvamento e query
  * 3. Estrutura consistente com Firestore
+ * 
+ * v15: Precisão real no ranking
+ * - totalDictationScore: soma de todos os scores (primeira tentativa)
+ * - totalDictationCount: quantidade de ditados feitos
+ * - Média = totalDictationScore / totalDictationCount
  */
 
 export const progressService = {
@@ -124,12 +128,16 @@ export const progressService = {
   },
 
   /**
-   * HOTFIX #1: Salva o score de Ditado
-   * Atualiza apenas se for melhor que o anterior
-   * Se for 100% pela primeira vez, incrementa perfectDictationCount
+   * Salva o score de Ditado
    * 
-   * ⚠️ IMPORTANTE: incremento do contador é feito com updateDoc()
-   * não com setDoc() + merge. increment() só funciona com updateDoc().
+   * Lógica:
+   * 1. Se é a PRIMEIRA VEZ deste episódio (best === 0):
+   *    - Adiciona score à soma total (para calcular média real)
+   *    - Incrementa contador de ditados
+   * 2. Se for melhor que anterior, atualiza o best score
+   * 3. Se for 100% pela primeira vez, incrementa perfectDictationCount
+   * 
+   * ⚠️ IMPORTANTE: increment() só funciona com updateDoc(), não setDoc()
    */
   async saveDictationScore(uid, seriesId, episodeId, score) {
     const numericSeriesId = parseInt(seriesId, 10)
@@ -144,7 +152,9 @@ export const progressService = {
     )
     
     const snap = await getDoc(progressRef)
-    const best = snap.exists() ? (snap.data().dictationBestScore || 0) : 0
+    const existingData = snap.exists() ? snap.data() : {}
+    const best = existingData.dictationBestScore || 0
+    const isFirstAttempt = best === 0
     
     // Atualiza score se for melhor
     if (score > best) {
@@ -156,16 +166,24 @@ export const progressService = {
       }, { merge: true })
     }
 
-    // Tutorial não conta para badges/contadores
+    // Tutorial não conta para badges/contadores/média
     if (numericSeriesId === TUTORIAL_SERIES_ID) {
       return false
     }
 
-    // Se é primeiro 100%, incrementa contador
+    const userRef = doc(db, 'users', uid)
+
+    // PRIMEIRA TENTATIVA: adiciona à média real
+    // Só conta a primeira vez para evitar farming de média
+    if (isFirstAttempt) {
+      await updateDoc(userRef, { 
+        totalDictationScore: increment(score),
+        totalDictationCount: increment(1)
+      })
+    }
+
+    // Se é primeiro 100%, incrementa contador de perfeitos
     if (score === 100 && best < 100) {
-      const userRef = doc(db, 'users', uid)
-      
-      // ✅ HOTFIX: usar updateDoc com increment(), não setDoc
       await updateDoc(userRef, { 
         perfectDictationCount: increment(1)
       })

@@ -2,19 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import LoginModal from './LoginModal'
+import { ADMIN_EMAILS } from '../constants'
 
 export default function Header({ showBack, backTo }) {
   const navigate = useNavigate()
   const { user, userData, logout } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
-
-  // 🔑 LISTA VIP: Seus emails que podem ver o botão
-  const ADMIN_EMAILS = [
-    "alexmg@gmail.com", 
-    "alexsbd85@gmail.com",
-    "alexalienmg@gmail.com",
-    "alexpotterbd@gmail.com"
-  ]
 
   // Verifica se é Admin (seguro contra maiúsculas/minúsculas)
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())

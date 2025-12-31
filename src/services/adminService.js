@@ -16,6 +16,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore'
 import { firebaseConfig, db } from './firebase'
+import { ADMIN_EMAILS } from '../constants'
 
 // Instância secundária APENAS para criar usuários sem deslogar o admin
 const secondaryApp = initializeApp(firebaseConfig, "Secondary")
@@ -50,6 +51,9 @@ export async function createStudentAccount(email, password, name) {
       perfectQuizCount: 0,
       completedSeriesIds: [],
       diamondSeriesIds: [],
+      // v15: Campos para precisão real no ranking
+      totalDictationScore: 0,
+      totalDictationCount: 0,
       // Time tracking
       totalTimeSpent: 0,
       weeklyTimeSpent: 0,
@@ -278,13 +282,6 @@ export async function getAnalytics() {
 // RANKING SEMANAL
 // ============================================
 
-const ADMIN_EMAILS = [
-  "alexmg@gmail.com",
-  "alexsbd85@gmail.com",
-  "alexalienmg@gmail.com",
-  "alexpotterbd@gmail.com"
-]
-
 /**
  * Atualiza ranking semanal (chamado manualmente pelo admin)
  * Salva em settings/weeklyRanking
@@ -306,8 +303,9 @@ export async function updateWeeklyRanking() {
         id: u.id,
         name: u.name || 'Aluno',
         diamonds: u.seriesWithDiamond || 0,
-        precision: u.perfectDictationCount > 0 
-          ? Math.min(99, 85 + u.perfectDictationCount * 2) 
+        // v15: Precisão REAL (média dos ditados)
+        precision: u.totalDictationCount > 0 
+          ? Math.round(u.totalDictationScore / u.totalDictationCount) 
           : 0,
         weeklyTime: u.weeklyTimeSpent || 0
       }))

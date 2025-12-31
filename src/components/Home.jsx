@@ -212,7 +212,7 @@ const diamondSeries = (userData?.diamondSeriesIds || []).reduce((acc, id) => {
           
           setContinueEpisode({
             url: `/series/${lastProgress.seriesId}/episode/${lastProgress.episodeId}`,
-            coverImage: lastProgress.coverImage,
+            coverImage: lastProgress.coverImage || series.coverImage,
             seriesTitle: lastProgress.seriesTitle,
             episodeTitle: lastProgress.episodeTitle,
             progress: Math.round((lastProgress.questionsAnswered / totalQuestions) * 100),

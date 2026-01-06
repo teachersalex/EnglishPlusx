@@ -38,6 +38,9 @@ export function AuthProvider({ children }) {
   
   // Time tracking: marca quando a sessão começou
   const sessionStartRef = useRef(null)
+  
+  // [v15] Time tracking: última atividade do usuário
+  const lastActivityRef = useRef(null)
 
   // ============================================
   // TIME TRACKING
@@ -67,11 +70,40 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) return
     
+    // [v15] Detecta atividade do usuário
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now()
+    }
+    
+    // Eventos que indicam atividade real
+    window.addEventListener('click', updateActivity)
+    window.addEventListener('keydown', updateActivity)
+    window.addEventListener('scroll', updateActivity)
+    window.addEventListener('touchstart', updateActivity)
+    
+    // Inicializa com atividade
+    updateActivity()
+    
     const interval = setInterval(() => {
-      saveSessionTime(user.uid)
+      // [v15] Só salva se houve atividade nos últimos 6 minutos
+      const sixMinutesAgo = Date.now() - (6 * 60 * 1000)
+      const wasActive = lastActivityRef.current && lastActivityRef.current > sixMinutesAgo
+      
+      if (wasActive) {
+        saveSessionTime(user.uid)
+      } else {
+        // Usuário inativo — reseta sessionStart para não acumular
+        sessionStartRef.current = Date.now()
+      }
     }, 5 * 60 * 1000) // 5 minutos
     
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('click', updateActivity)
+      window.removeEventListener('keydown', updateActivity)
+      window.removeEventListener('scroll', updateActivity)
+      window.removeEventListener('touchstart', updateActivity)
+    }
   }, [user])
 
   // Salva tempo ao fechar aba/navegador
@@ -152,6 +184,7 @@ export function AuthProvider({ children }) {
       await saveSessionTime(user.uid)
     }
     sessionStartRef.current = null
+    lastActivityRef.current = null
     await signOut(auth)
     setUserData(null)
   }
@@ -384,8 +417,10 @@ export function AuthProvider({ children }) {
         await updateStreak(u.uid)
         // Inicia contagem de tempo da sessão
         sessionStartRef.current = Date.now()
+        lastActivityRef.current = Date.now()
       } else {
         sessionStartRef.current = null
+        lastActivityRef.current = null
       }
       setLoading(false)
     })

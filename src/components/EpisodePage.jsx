@@ -426,6 +426,7 @@ function EpisodePage() {
             setShowQuiz={setShowQuiz}
             seriesId={id}
             episodeId={episodeId}
+            wasAlreadyCompleted={wasAlreadyCompleted}
           />
         </motion.div>
 

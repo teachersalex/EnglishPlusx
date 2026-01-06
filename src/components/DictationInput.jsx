@@ -1,5 +1,6 @@
 // src/components/DictationInput.jsx
 // Área de digitação estilo Moleskine - THE GOLD
+// v10.9 — Mudo persistente (localStorage)
 // ============================================
 
 import { useState, useRef, useEffect, useCallback } from 'react'
@@ -15,7 +16,13 @@ export default function DictationInput({
   const textareaRef = useRef(null)
   const [isFocused, setIsFocused] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
-  const [typingSoundEnabled, setTypingSoundEnabled] = useState(true)
+  
+  // [v10.9] Estado inicial lê preferência salva
+  const [typingSoundEnabled, setTypingSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem('englishplus_sound_muted')
+    return saved === null ? true : saved === 'false'
+  })
+  
   const typingTimeoutRef = useRef(null)
 
   // Contador de palavras
@@ -25,6 +32,11 @@ export default function DictationInput({
   useEffect(() => {
     const initSound = async () => {
       await typingSound.init()
+      // [v10.9] Sincroniza engine com preferência salva
+      const savedMuted = localStorage.getItem('englishplus_sound_muted') === 'true'
+      if (savedMuted && typingSound.isEnabled?.()) {
+        typingSound.toggle()
+      }
       document.removeEventListener('click', initSound)
       document.removeEventListener('keydown', initSound)
     }
@@ -60,10 +72,11 @@ export default function DictationInput({
     typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 150)
   }, [userText, typingSoundEnabled, setUserText])
 
-  // Toggle som de digitação
+  // [v10.9] Toggle som de digitação + salva preferência
   const toggleTypingSound = () => {
     const newState = typingSound.toggle()
     setTypingSoundEnabled(newState)
+    localStorage.setItem('englishplus_sound_muted', String(!newState))
   }
 
   return (

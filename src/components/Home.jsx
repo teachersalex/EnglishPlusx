@@ -194,7 +194,13 @@ const diamondSeries = (userData?.diamondSeriesIds || []).reduce((acc, id) => {
     }
   }, [user, tutorialCompleted])
 
-  // Carrega último progresso
+  // =============================================
+  // [v15] CONTINUE OUVINDO — LÓGICA CORRIGIDA
+  // Comportamento Netflix:
+  // 1. Se episódio não completo → mostra esse episódio
+  // 2. Se episódio completo MAS série não terminou → mostra PRÓXIMO
+  // 3. Se série completa → null (vai pegar próxima série mais recente)
+  // =============================================
   useEffect(() => {
     async function loadContinue() {
       if (!user) return
@@ -203,27 +209,59 @@ const diamondSeries = (userData?.diamondSeriesIds || []).reduce((acc, id) => {
       try {
         const lastProgress = await getLastProgress()
         
-        if (lastProgress && !lastProgress.completed) {
-          const series = seriesData[lastProgress.seriesId]
-          if (!series) return 
+        if (!lastProgress) {
+          setContinueEpisode(null)
+          return
+        }
 
-          const episode = series.episodes.find(ep => ep.id === parseInt(lastProgress.episodeId))
-          const totalQuestions = episode?.questions.length || 3
+        const series = seriesData[lastProgress.seriesId]
+        if (!series) {
+          setContinueEpisode(null)
+          return
+        }
+
+        const totalEpisodes = series.episodes.length
+        const currentEpisodeId = parseInt(lastProgress.episodeId, 10)
+
+        // CASO 1: Episódio NÃO completo → mostra esse episódio
+        if (!lastProgress.completed) {
+          const episode = series.episodes.find(ep => ep.id === currentEpisodeId)
+          const totalQuestions = episode?.questions?.length || 3
           
           setContinueEpisode({
             url: `/series/${lastProgress.seriesId}/episode/${lastProgress.episodeId}`,
             coverImage: lastProgress.coverImage || series.coverImage,
-            seriesTitle: lastProgress.seriesTitle,
-            episodeTitle: lastProgress.episodeTitle,
+            seriesTitle: lastProgress.seriesTitle || series.title,
+            episodeTitle: lastProgress.episodeTitle || episode?.title || `Episódio ${currentEpisodeId}`,
             progress: Math.round((lastProgress.questionsAnswered / totalQuestions) * 100),
             questionsAnswered: lastProgress.questionsAnswered || 0,
             totalQuestions
           })
+          return
+        }
+
+        // CASO 2: Episódio COMPLETO → verifica se série tem próximo
+        const nextEpisode = series.episodes.find(ep => ep.id === currentEpisodeId + 1)
+        
+        if (nextEpisode) {
+          // Série NÃO terminou → mostra próximo episódio
+          setContinueEpisode({
+            url: `/series/${lastProgress.seriesId}/episode/${nextEpisode.id}`,
+            coverImage: series.coverImage,
+            seriesTitle: series.title,
+            episodeTitle: nextEpisode.title,
+            progress: 0,
+            questionsAnswered: 0,
+            totalQuestions: nextEpisode.questions?.length || 3
+          })
         } else {
+          // CASO 3: Série completa → não mostra card
           setContinueEpisode(null)
         }
+
       } catch (error) {
         console.error("Erro ao carregar progresso:", error)
+        setContinueEpisode(null)
       }
     }
     

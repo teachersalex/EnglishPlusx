@@ -61,8 +61,8 @@ I need a solution.
 I see a vase with flowers.
 Red roses.
 I take a stapler.
-I put the red flower over the hole.
-I staple the flower to the dress.
+I put a red flower over the hole.
+Then I staple the flower to the dress.
 It looks artistic.
 It looks modern.
 "Ready!" I shout.
@@ -85,7 +85,7 @@ My boss removes her sunglasses.
 She smiles wickedly.
 "Did you plan this?" the press asks.
 She looks at me.
-"Of course," she lies.
+"Of course," she says.
 She takes all the credit.
 Fashion is a shark tank.`,
         questions: [

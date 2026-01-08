@@ -83,7 +83,7 @@ The crowd gasps.
 "A red flower on gold! Genius!" a journalist shouts.
 My boss removes her sunglasses.
 She smiles wickedly.
-"Did you plan this?" the press asks.
+The press asks, "Did you plan this?"
 She looks at me.
 "Of course," she says.
 She takes all the credit.

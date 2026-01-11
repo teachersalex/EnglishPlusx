@@ -1,5 +1,8 @@
+// src/components/LoginModal.jsx
+// 🔧 FIX v16: Usar finally ao invés de duplicar setLoading(false)
+
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginModal({ isOpen, onClose }) {
@@ -26,8 +29,10 @@ export default function LoginModal({ isOpen, onClose }) {
       onClose()
     } catch (err) {
       setError(isLogin ? 'Email ou senha incorretos' : 'Erro ao criar conta')
+    } finally {
+      // 🔧 FIX: finally garante que setLoading(false) sempre executa
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function handleGoogle() {
@@ -38,8 +43,10 @@ export default function LoginModal({ isOpen, onClose }) {
       onClose()
     } catch (err) {
       setError('Erro ao entrar com Google')
+    } finally {
+      // 🔧 FIX: finally garante que setLoading(false) sempre executa
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   if (!isOpen) return null

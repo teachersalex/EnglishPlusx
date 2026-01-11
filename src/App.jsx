@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider } from './contexts/AuthContext'
+import { AppProviders } from './contexts'
 import SplashScreen from './components/SplashScreen'
-import Home from './components/Home'
+import Home from './components/home/Home'
 import SeriesPage from './components/SeriesPage'
-import EpisodePage from './components/EpisodePage'
+import EpisodePage from './components/episode/EpisodePage'
 import AdminDashboard from './components/AdminDashboard'
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
   }
 
   return (
-    <AuthProvider>
+    <AppProviders>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -24,7 +24,7 @@ function App() {
           <Route path="/series/:id/episode/:episodeId" element={<EpisodePage />} />
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
+    </AppProviders>
   )
 }
 

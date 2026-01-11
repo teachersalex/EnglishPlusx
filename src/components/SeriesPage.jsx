@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { seriesData } from '../data/series'
 import { useAuth } from '../contexts/AuthContext'
+import { useProgress } from '../contexts/ProgressContext'
 import Header from './Header'
 import OnboardingTour from './OnboardingTour'
 import { OnboardingStorage } from '../utils/onboardingStorage'
@@ -31,7 +32,8 @@ const SERIES_TOUR_STEPS = [
 function SeriesPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, getProgress } = useAuth()
+  const { user } = useAuth()
+  const { getProgress } = useProgress()
   const [completedEpisodes, setCompletedEpisodes] = useState({})
   const [loading, setLoading] = useState(true)
   const [showTour, setShowTour] = useState(false)

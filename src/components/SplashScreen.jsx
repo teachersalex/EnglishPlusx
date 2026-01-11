@@ -1,3 +1,6 @@
+// src/components/SplashScreen.jsx
+// 🔧 FIX v16: Deps vazias no useEffect (onFinish não muda logicamente)
+
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 
@@ -8,7 +11,7 @@ function SplashScreen({ onFinish }) {
     }, 2500)
     
     return () => clearTimeout(timer)
-  }, [onFinish])
+  }, [])  // 🔧 FIX: Deps vazias - onFinish não vai mudar durante o splash
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">

@@ -13,8 +13,7 @@ import { ADMIN_EMAILS } from '../constants'
  * - Buscar Ranking Semanal
  * 
  * v15: Campos para precisão real
- * - totalDictationScore: soma de todos os scores
- * - totalDictationCount: quantidade de ditados feitos
+ * v16: Adicionado getUserData (fix bug)
  */
 
 export const userService = {
@@ -53,6 +52,17 @@ export const userService = {
       return newUserData
     }
     return userSnap.data()
+  },
+
+  /**
+   * 🔧 v16 FIX: Busca dados atuais do usuário (sem criar)
+   * Usado pelo updateStreak para pegar dados frescos
+   */
+  async getUserData(uid) {
+    if (!uid) return null
+    const userRef = doc(db, 'users', uid)
+    const userSnap = await getDoc(userRef)
+    return userSnap.exists() ? userSnap.data() : null
   },
 
   /**
@@ -156,10 +166,7 @@ export const userService = {
 
   /**
    * Busca ranking semanal (exclui admins)
-   * 
    * v15: Precisão REAL (média dos ditados)
-   * - Antes: fórmula fake (85 + perfectCount * 2)
-   * - Agora: totalDictationScore / totalDictationCount
    */
   async getWeeklyRanking(excludeUid = null) {
     const usersRef = collection(db, 'users')
@@ -168,11 +175,8 @@ export const userService = {
     const users = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter(u => {
-        // Exclui admins
         if (ADMIN_EMAILS.includes(u.email?.toLowerCase())) return false
-        // Exclui uid específico se passado
         if (excludeUid && u.id === excludeUid) return false
-        // Exclui suspensos
         if (u.status === 'suspended') return false
         return true
       })
@@ -180,14 +184,12 @@ export const userService = {
         id: u.id,
         name: u.name || 'Aluno',
         diamonds: u.seriesWithDiamond || 0,
-        // v15: Precisão REAL
         precision: u.totalDictationCount > 0 
           ? Math.round(u.totalDictationScore / u.totalDictationCount) 
           : 0,
         weeklyTime: u.weeklyTimeSpent || 0
       }))
       .sort((a, b) => {
-        // Ordena por: diamantes > precisão > tempo
         if (b.diamonds !== a.diamonds) return b.diamonds - a.diamonds
         if (b.precision !== a.precision) return b.precision - a.precision
         return b.weeklyTime - a.weeklyTime

@@ -1,4 +1,6 @@
 // src/components/modals/AdminModals.jsx
+// 🔧 FIX v16: student?.id em deps do useEffect (previne re-fetch desnecessário)
+
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { seriesData } from '../../data/series'
@@ -118,14 +120,17 @@ export function StudentDetailsModal({ student, isOpen, onClose }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isOpen && student) {
+    // 🔧 FIX: Usar student?.id ao invés de student inteiro
+    // Objects são comparados por referência, então student sempre é "diferente"
+    // Usar o ID primitivo evita re-fetches desnecessários
+    if (isOpen && student?.id) {
       setLoading(true)
       getStudentDetails(student.id)
         .then(setDetails)
         .catch(console.error)
         .finally(() => setLoading(false))
     }
-  }, [isOpen, student])
+  }, [isOpen, student?.id])  // 🔧 FIX: student?.id ao invés de student
 
   if (!isOpen) return null
 
@@ -248,14 +253,17 @@ export function StudentDetailsModal({ student, isOpen, onClose }) {
 // ============================================
 export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText, danger = false }) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')  // 🔧 FIX: Adiciona estado de erro
 
   const handleConfirm = async () => {
     setLoading(true)
+    setError('')  // 🔧 FIX: Limpa erro anterior
     try {
       await onConfirm()
       onClose()
-    } catch (error) {
-      console.error(error)
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Erro ao executar ação')  // 🔧 FIX: Mostra erro ao usuário
     } finally {
       setLoading(false)
     }
@@ -271,7 +279,14 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
         className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
       >
         <h2 className="text-xl font-bold text-[#1A1A1A] mb-2">{title}</h2>
-        <p className="text-[#6B7280] mb-6">{message}</p>
+        <p className="text-[#6B7280] mb-4">{message}</p>
+        
+        {/* 🔧 FIX: Mostra erro ao usuário */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
         
         <div className="flex gap-3">
           <button

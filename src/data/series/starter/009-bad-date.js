@@ -39,7 +39,7 @@ I wear my best dress.`,
 I see a man.
 It is Brad.
 But he is different.
-He is not like the photo.
+Not like the photo.
 He does not stand up.
 He does not smile.
 "You are late," he says.

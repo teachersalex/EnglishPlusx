@@ -1,6 +1,4 @@
 // src/components/SplashScreen.jsx
-// 🔧 FIX v16: Deps vazias no useEffect (onFinish não muda logicamente)
-
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 
@@ -11,10 +9,15 @@ function SplashScreen({ onFinish }) {
     }, 2500)
     
     return () => clearTimeout(timer)
-  }, [])  // 🔧 FIX: Deps vazias - onFinish não vai mudar durante o splash
+  }, [])
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-[#F0F0F0] flex items-center justify-center"
+    >
       <div className="text-center">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
@@ -41,7 +44,7 @@ function SplashScreen({ onFinish }) {
           className="h-1 bg-[#E50914] mx-auto mt-6 rounded-full"
         />
       </div>
-    </div>
+    </motion.div>
   )
 }
 
